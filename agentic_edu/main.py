@@ -3,6 +3,15 @@ import dotenv
 from agentic_edu.modules.db import PostgresManager
 from agentic_edu.modules.llm import add_cap_ref
 import agentic_edu.modules.llm as llm
+import argparse
+from autogen import (
+    AssistantAgent,
+    UserProxyAgent,
+    GroupChat,
+    GroupChatManager,
+    config_list_from_json,
+    config_list_from_models,
+)
 
 dotenv.load_dotenv()
 
@@ -13,12 +22,9 @@ DB_URL = os.environ.get("DATABASE_URL")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 POSTGRES_TABLE_DEFINITIONS_CAP_REF = "TABLE_DEFINITIONS"
-POSTGRES_SQL_QUERY_CAP_REF = "SQL_QUERY"
+#POSTGRES_SQL_QUERY_CAP_REF = "SQL_QUERY"
 RESPONSE_FORMAT_CAP_REF = "RESPONSE_FORMAT"
-
 SQL_DELIMITER = "------------"
-
-import argparse
 
 def main():
     parser = argparse.ArgumentParser()
@@ -29,7 +35,7 @@ def main():
         print("Please provide a prompt")
         return
     
-    prompt = args.prompt
+    prompt = f"Fulfill this database query: {args.prompt}."
 
     with PostgresManager() as db:
         
@@ -41,7 +47,7 @@ def main():
         print("table_definitions", table_definitions)
         
         prompt = add_cap_ref(
-            args.prompt,
+            prompt,
             f"Use these [{POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
             POSTGRES_TABLE_DEFINITIONS_CAP_REF,
             table_definitions,
@@ -54,26 +60,26 @@ def main():
             f"\n\nRespond in this format {RESPONSE_FORMAT_CAP_REF}. Replace the text between <> with it's request. I need to be able to easily parse the sql query from your response.",
             RESPONSE_FORMAT_CAP_REF,
             f"""<explanation of the sql query>
-            {SQL_DELIMITER}
-            <sql query exclusively as raw text>""",
+{SQL_DELIMITER}
+<sql query exclusively as raw text>""",
         )
         
+        print("\n\n----------- PROMPT -----------")
         print("prompt v3", prompt)
         
         prompt_response = llm.prompt(prompt)
         
+        print("\n\n----------- PROMPT RESPONSE -----------")
         print("prompt_response", prompt_response)
-        
-        #prompt_with_table_definitions = llm.add_cap_ref(args.prompt, "Here are the table definitions:", "TABLE_DEFINITIONS", table_definitions)
-        #prompt_response = llm.prompt(prompt_with_table_definitions)
 
         sql_query = prompt_response.split(SQL_DELIMITER)[1].strip()
         
+        print("\n\n----------- PARSED SQL QUERY -----------")
         print("sql_query", sql_query)
         
         result = db.run_sql(sql_query)
         
-        print("----------- POSTGRES DATA ANALYTICS AI AGENT RESPONSE -----------")
+        print("\n\n-========== POSTGRES DATA ANALYTICS AI AGENT RESPONSE ==========-")
         
         print(result)
 
