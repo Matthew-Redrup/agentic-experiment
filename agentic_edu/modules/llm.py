@@ -1,8 +1,8 @@
-"""
-Purpose:
-    Interact with the OpenAI API.
-    Provide supporting prompt engineering functions.
-"""
+# """
+# Purpose:
+#     Interact with the OpenAI API.
+#     Provide supporting prompt engineering functions.
+# """
 
 import sys
 from dotenv import load_dotenv

@@ -52,8 +52,10 @@ class PostgresManager:
         self.conn.commit()
 
     def get_table_definitions(self, table_name):
-        sql_query = sql.SQL("SELECT column_name, data_type, character_maximum_length "
-                            "FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s").format(sql.Identifier(table_name))
+        if not isinstance(table_name, str):
+            print(table_name)
+            raise ValueError("table_name should be a string")
+        sql_query = sql.SQL("SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s").format(sql.Identifier(table_name))
         self.cur.execute(sql_query, [table_name])
         return self.cur.fetchall()
 
@@ -64,6 +66,7 @@ class PostgresManager:
     def get_table_definitions_for_prompt(self):
         table_names = self.get_all_table_names()
         table_definitions = []
-        for table_name in table_names:
+        for row in table_names:
+            table_name = row["table_name"]
             table_definitions.append({"table_name": table_name, "table_definition": self.get_table_definitions(table_name)})
         return "\n".join([str(t) for t in table_definitions])

@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "agentic-edu"
+version = "0.1.0"
+description = ""
+authors = ["Matthew Redrup"]
+readme = "README.md"
+packages = [{include = "agentic_edu"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+openai = "^0.28.1"
+argparse = "^1.4.0"
+python-dotenv = "^1.0.0"
+psycopg2-binary = "^2.9.9"
+pyautogen = "^0.1.13"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "agentic_edu.main:main"
