@@ -1,7 +1,6 @@
 import psycopg2
-from psycopg2 import sql
-from psycopg2.extras import RealDictCursor
-
+from psycopg2.sql import SQL, Identifier
+from datetime import datetime
 
 class PostgresManager:
 
@@ -20,56 +19,75 @@ class PostgresManager:
 
     def connect_with_url(self, url):
         self.conn = psycopg2.connect(url)
-        self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
+        self.cur = self.conn.cursor()
 
     def upsert(self, table_name, _dict):
         columns = _dict.keys()
-        values = [sql.Identifier(k) for k in _dict.values()]
-        sql_query = sql.SQL(
-            "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT (id) DO UPDATE SET {}").format(
-            sql.Identifier(table_name),
-            sql.SQL(',').join(map(sql.Identifier, columns)),
-            sql.SQL(',').join(map(sql.Placeholder, columns)),
-            sql.SQL(',').join(sql.SQL('{} = {}').format(sql.Identifier(k), sql.Placeholder(k)) for k in columns))
-        self.cur.execute(sql_query, _dict)
+        values = [SQL('%s')] * len(columns)
+        upsert_stmt = SQL(
+            'INSERT INTO {} ({}) VALUES ({}) ON CONFLICT (id) DO UPDATE SET {}'
+            ).format(
+            Identifier(table_name),
+            SQL(', ').join(map(Identifier, columns)),
+            SQL(', ').join(values),
+            SQL(', ').join(
+                [
+                    SQL('{} = EXCLUDED.{}').format(Identifier(k), Identifier(k))
+                    for k in columns
+                ]
+            ),
+        )
+        self.cur.execute(upsert_stmt, list(_dict.values()))
         self.conn.commit()
 
     def delete(self, table_name, _id):
-        sql_query = sql.SQL("DELETE FROM {} WHERE id = %s").format(sql.Identifier(table_name))
-        self.cur.execute(sql_query, [_id])
+        delete_stmt = SQL('DELETE FROM {} WHERE id = %s').format(Identifier(table_name))
+        self.cur.execute(delete_stmt, (_id,))
         self.conn.commit()
 
     def get(self, table_name, _id):
-        sql_query = sql.SQL("SELECT * FROM {} WHERE id = %s").format(sql.Identifier(table_name))
-        self.cur.execute(sql_query, [_id])
+        select_stmt = SQL('SELECT * FROM {} WHERE id = %s').format(Identifier(table_name))
+        self.cur.execute(select_stmt, (_id,))
         return self.cur.fetchone()
 
     def get_all(self, table_name):
-        sql_query = sql.SQL("SELECT * FROM {}").format(sql.Identifier(table_name))
-        self.cur.execute(sql_query)
+        select_all_stmt = SQL('SELECT * FROM {}').format(Identifier(table_name))
+        self.cur.execute(select_all_stmt)
         return self.cur.fetchall()
     
-    def run_sql(self, sql_query):
-        self.cur.execute(sql_query)
-        self.conn.commit()
+    def run_sql(self, sql):
+        self.cur.execute(sql)
         return self.cur.fetchall()
 
-    def get_table_definitions(self, table_name):
-        if not isinstance(table_name, str):
-            print(table_name)
-            raise ValueError("table_name should be a string")
-        sql_query = sql.SQL("SELECT column_name, data_type, character_maximum_length FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = %s").format(sql.Identifier(table_name))
-        self.cur.execute(sql_query, [table_name])
-        return self.cur.fetchall()
+    def get_table_definition(self, table_name):
+        get_def_stmt = """
+        SELECT pg_class.relname as tablename,
+            pg_attribute.attnum,
+            pg_attribute.attname,
+            format_type(atttypid, atttypmod)
+        FROM pg_class
+        JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+        JOIN pg_attribute ON pg_attribute.attrelid = pg_class.oid
+        WHERE pg_attribute.attnum > 0
+            AND pg_class.relname = %s
+            AND pg_namespace.nspname = 'public' -- Assuming you're interested in public schema
+        """
+        self.cur.execute(get_def_stmt, (table_name,))
+        rows = self.cur.fetchall()
+        create_table_stmt = "CREATE TABLE {} (\n".format(table_name)
+        for row in rows:
+            create_table_stmt += "{} {},\n".format(row[2], row[3])
+        create_table_stmt = create_table_stmt.rstrip(',\n') + "\n);"
+        return create_table_stmt
 
     def get_all_table_names(self):
-        self.cur.execute("SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema='public'")
-        return self.cur.fetchall()
+        get_all_tables_stmt = "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
+        self.cur.execute(get_all_tables_stmt)
+        return [row[0] for row in self.cur.fetchall()]
 
     def get_table_definitions_for_prompt(self):
         table_names = self.get_all_table_names()
-        table_definitions = []
-        for row in table_names:
-            table_name = row["table_name"]
-            table_definitions.append({"table_name": table_name, "table_definition": self.get_table_definitions(table_name)})
-        return "\n".join([str(t) for t in table_definitions])
+        definitions = []
+        for table_name in table_names:
+            definitions.append(self.get_table_definition(table_name))
+        return "\n\n".join(definitions)
