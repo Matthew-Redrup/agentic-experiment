@@ -38,13 +38,9 @@ def main():
     prompt = f"Fulfill this database query: {args.prompt}."
 
     with PostgresManager() as db:
-        
-        print("prompt v1", prompt)
-        
         db.connect_with_url(DB_URL)
         
         table_definitions = db.get_table_definitions_for_prompt()
-        print("table_definitions", table_definitions)
         
         prompt = add_cap_ref(
             prompt,
@@ -53,35 +49,20 @@ def main():
             table_definitions,
         )
         
-        print("prompt v2", prompt)
+        # build the gpt_configuration object
         
-        prompt = add_cap_ref(
-            prompt, 
-            f"\n\nRespond in this format {RESPONSE_FORMAT_CAP_REF}. Replace the text between <> with it's request. I need to be able to easily parse the sql query from your response.",
-            RESPONSE_FORMAT_CAP_REF,
-            f"""<explanation of the sql query>
-{SQL_DELIMITER}
-<sql query exclusively as raw text>""",
-        )
+        # build the function map
         
-        print("\n\n----------- PROMPT -----------")
-        print("prompt v3", prompt)
+        # create our terminate msg function
         
-        prompt_response = llm.prompt(prompt)
+        # create a set of agents with specific roles
+            # admin user proxy agent - takes in the prompt and manages the group chat
+            # data engineer agent - generates the sql query
+            # sr data analyst agent - run the sql query and generate the response
+            # product manager - validate the response to make sure it's correct
         
-        print("\n\n----------- PROMPT RESPONSE -----------")
-        print("prompt_response", prompt_response)
-
-        sql_query = prompt_response.split(SQL_DELIMITER)[1].strip()
+        # create a group chat and initiate a new chat
         
-        print("\n\n----------- PARSED SQL QUERY -----------")
-        print("sql_query", sql_query)
         
-        result = db.run_sql(sql_query)
-        
-        print("\n\n-========== POSTGRES DATA ANALYTICS AI AGENT RESPONSE ==========-")
-        
-        print(result)
-
 if __name__ == '__main__':
     main()
