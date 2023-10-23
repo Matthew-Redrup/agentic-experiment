@@ -44,7 +44,7 @@ def main():
         
         prompt = add_cap_ref(
             prompt,
-            f"Use these [{POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
+            f"Use these {POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
             POSTGRES_TABLE_DEFINITIONS_CAP_REF,
             table_definitions,
         )
@@ -53,7 +53,7 @@ def main():
         gpt4_config = {
             "use_cache": False,
             "temperature": 0,
-            "config_list": ["gpt-4"],
+            "config_list": config_list_from_models(["gpt-4"]),
             "request_timeout": 120,
             "functions": [
                 {
@@ -80,7 +80,7 @@ def main():
         }
 
         # create our terminate msg function
-        def is_termintation_msg(content):
+        def is_termination_msg(content):
             have_content = content.get("content", None) is not None
             if have_content and "APPROVED" in content["content"]:
                 return True
@@ -112,7 +112,7 @@ def main():
             system_message=USER_PROXY_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
-            is_termintation_msg=is_termintation_msg,
+            is_termination_msg=is_termination_msg,
         )
 
         # data engineer agent - generates the sql query
@@ -122,28 +122,28 @@ def main():
             system_message=DATA_ENGINEER_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
-            is_termintation_msg=is_termintation_msg,
+            is_termination_msg=is_termination_msg,
         )
 
         # sr data analyst agent - run the sql query and generate the response
         sr_data_analyst = AssistantAgent(
-            name="Sr Data Analyst",
+            name="Sr_Data_Analyst",
             llm_config=gpt4_config,
             system_message=SR_DATA_ANALYST_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
-            is_termintation_msg=is_termintation_msg,
+            is_termination_msg=is_termination_msg,
             function_map=function_map,
         )
 
         # product manager - validate the response to make sure it's correct
         product_manager = AssistantAgent(
-            name="Product Manager",
+            name="Product_Manager",
             llm_config=gpt4_config,
             system_message=PRODUCT_MANAGER_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
-            is_termintation_msg=is_termintation_msg,
+            is_termination_msg=is_termination_msg,
         )
 
         # create a group chat and initiate a new chat
