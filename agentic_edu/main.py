@@ -51,54 +51,111 @@ def main():
         
         # build the gpt_configuration object
         gpt4_config = {
-            "seed": 42,  # change the seed for different trials
+            "use_cache": False,
             "temperature": 0,
-            "config_list": config_list_from_models(),
+            "config_list": ["gpt-4"],
             "request_timeout": 120,
+            "functions": [
+                {
+                    "name": "run_sql",
+                    "description": "Run a SQL query against the postgres database",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sql": {
+                                "type": "string",
+                                "description": "The SQL query to run",
+                            }
+                        },
+                        "required": ["sql"],
+                    },
+                }
+            ],
         }
 
         # build the function map
-        # TODO: Define the function map
+        function_map = {
+            'run_sql': db.run_sql,
+            
+        }
 
         # create our terminate msg function
-        # TODO: Define the terminate msg function
+        def is_termintation_msg(content):
+            have_content = content.get("content", None) is not None
+            if have_content and "APPROVED" in content["content"]:
+                return True
+            return False
+        
+        COMPLETION_PROMPT = "If everything looks good, respond with APPROVED"
+        
+        USER_PROXY_PROMPT = (
+            "A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin."
+            + COMPLETION_PROMPT
+        )
+        DATA_ENGINEER_PROMPT = (
+            "A Data Engineer. You follow an approved plan. Generate the initial SQL based on the requirements provided. Send it to the Sr Data Analyst for review."
+            + COMPLETION_PROMPT
+        )
+        SR_DATA_ANALYST_PROMPT = (
+            "A Sr Data Analyst. You follow an approved plan. You run the SQL query and generate the response and send it to the product manager for final review."
+            + COMPLETION_PROMPT
+        )
+        PRODUCT_MANAGER_PROMPT = (
+            "A Product Manager. You validate the response to make sure it's correct."
+            + COMPLETION_PROMPT
+        )
 
         # create a set of agents with specific roles
         # admin user proxy agent - takes in the prompt and manages the group chat
-        admin = UserProxyAgent(
+        user_proxy = UserProxyAgent(
             name="Admin",
-            system_message="A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin.",
+            system_message=USER_PROXY_PROMPT,
             code_execution_config=False,
+            human_input_mode="NEVER",
+            is_termintation_msg=is_termintation_msg,
         )
 
         # data engineer agent - generates the sql query
         engineer = AssistantAgent(
             name="Engineer",
             llm_config=gpt4_config,
-            system_message='''Engineer. You follow an approved plan. You write python/shell code to solve tasks. Wrap the code in a code block that specifies the script type. The user can't modify your code. So do not suggest incomplete code which requires others to modify. Don't use a code block if it's not intended to be executed by the executor.
-            Don't include multiple code blocks in one response. Do not ask others to copy and paste the result. Check the execution result returned by the executor.
-            If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
-            ''',
+            system_message=DATA_ENGINEER_PROMPT,
+            code_execution_config=False,
+            human_input_mode="NEVER",
+            is_termintation_msg=is_termintation_msg,
         )
 
         # sr data analyst agent - run the sql query and generate the response
-        analyst = AssistantAgent(
-            name="Analyst",
+        sr_data_analyst = AssistantAgent(
+            name="Sr Data Analyst",
             llm_config=gpt4_config,
-            system_message="Analyst. You follow an approved plan. You run the SQL query and generate the response."
+            system_message=SR_DATA_ANALYST_PROMPT,
+            code_execution_config=False,
+            human_input_mode="NEVER",
+            is_termintation_msg=is_termintation_msg,
+            function_map=function_map,
         )
 
         # product manager - validate the response to make sure it's correct
-        manager = AssistantAgent(
-            name="Manager",
+        product_manager = AssistantAgent(
+            name="Product Manager",
             llm_config=gpt4_config,
-            system_message="Manager. You validate the response to make sure it's correct."
+            system_message=PRODUCT_MANAGER_PROMPT,
+            code_execution_config=False,
+            human_input_mode="NEVER",
+            is_termintation_msg=is_termintation_msg,
         )
 
         # create a group chat and initiate a new chat
-        groupchat = GroupChat(agents=[admin, engineer, analyst, manager], messages=[], max_round=50)
-        chat_manager = GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
-        # TODO: Initiate a new chat
+        groupchat = GroupChat(
+            agents=[user_proxy, engineer, sr_data_analyst, product_manager], 
+            messages=[], 
+            max_round=10,
+            )
+        
+        manager = GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
+        
+        user_proxy.initiate_chat(manager, clear_history=True, message=prompt)
         
         
 if __name__ == '__main__':
