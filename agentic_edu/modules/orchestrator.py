@@ -55,6 +55,14 @@ class Orchestrator:
         self.add_message(reply)
         print(f"basic_chat(): replied with:", reply)
         
+    def memory_chat(self, agent_a: autogen.ConversableAgent, agent_b: autogen.ConversableAgent, message: str):
+        print(f"memory_chat: {agent_a.name} -> {agent_b.name}")
+        agent_a.send(message, agent_b)
+        reply = agent_b.generate_reply(sender=agent_a)
+        agent_b.send(reply, agent_b)
+        self.add_message(reply)
+        print(f"memory_chat(): replied with:", reply)
+        
     def function_chat(self, agent_a: autogen.ConversableAgent, agent_b: autogen.ConversableAgent, message: str):
         print(f"function_call(): {agent_a.name} -> {agent_b.name}")
         self.basic_chat(agent_a, agent_a, message)
@@ -100,6 +108,39 @@ class Orchestrator:
                     
                 return was_successful, self.messages
             
-    
+    def broadcast_conversation(self, prompt: str) -> Tuple[bool, List[str]]:
+        """
+        Run a broadcast conversation between agents.
+        For example
+            "Agent A" -> "Agent B" 
+            "Agent A" -> "Agent C" 
+            "Agent A" -> "Agent D" 
+            "Agent A" -> "Agent E" 
+        """
+        
+        print(f"\n\n---------- {self.name} Orchestrator Starting----------\n\n")
+        
+        self.add_message(prompt)
+        
+        broadcast_agent = self.agents[0]
+        
+        for idx, agent_iterate in enumerate(self.agents[1:]):
+            print(
+                f"\n\n--------- Running iteration {idx} with (broadcast_agent: {broadcast_agent.name}, agent_iteration: {agent_iterate.name}) ----------\n\n"
+            )
+            
+            # agent_a -> chat -> agent_b
+            if self.last_message_is_string:
+                self.memory_chat(broadcast_agent, agent_iterate, prompt)
+                
+            # agent_a -> func() -> agent_b
+            if self.last_message_is_func_call and self.has_function(agent_iterate):
+                self.function_chat(agent_iterate, agent_iterate, self.latest_message)
+                
+            print(f"-------- Orchestrator Complete --------\n\n")
+                
+            print(f"Orchestrator was successful")
+                
+            return True, self.messages
         
     

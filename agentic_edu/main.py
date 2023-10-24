@@ -4,6 +4,7 @@ from agentic_edu.modules.db import PostgresManager
 from agentic_edu.modules.llm import add_cap_ref
 import agentic_edu.modules.llm as llm
 import agentic_edu.modules.orchestrator as orchestrator
+import agentic_edu.modules.file as file
 import argparse
 from autogen import (
     AssistantAgent,
@@ -51,11 +52,17 @@ def main():
         )
         
         # build the gpt_configuration object
-        gpt4_config = {
+        # Base Configuration
+        base_config = {
             "use_cache": False,
             "temperature": 0,
             "config_list": config_list_from_models(["gpt-4"]),
             "request_timeout": 120,
+        }
+        
+        # Configuration with "run_sql"
+        run_sql_config = {
+            **base_config, # Inherit base configuration
             "functions": [
                 {
                     "name": "run_sql",
@@ -71,15 +78,96 @@ def main():
                         "required": ["sql"],
                     },
                 }
+            ]
+        }
+        
+        write_file_config = {
+            **base_config, # Inherit base configuration
+            "functions": [
+                {
+                    "name": "write_file",
+                    "description": "Write a file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "content"],
+                    },
+                }
+            ],
+        }
+        
+        # Configuration with "write_json_file"
+        write_json_file_config = {
+            **base_config, # Inherit base configuration
+            "functions": [
+                {
+                    "name": "write_json_file",
+                    "description": "Write a json file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "json_str": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "json_str"],
+                    },
+                }
+            ],
+        }
+        
+        write_yaml_file_config = {
+            **base_config, # Inherit base configuration
+            "functions": [
+                {
+                    "name": "write_yaml_file",
+                    "description": "Write a Yaml file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "json_str": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "json_str"],
+                    },
+                }
             ],
         }
 
         # build the function map
-        function_map = {
-            'run_sql': db.run_sql,
-            
+        function_map_run_sql = {
+            "run_sql": db.run_sql,  
         }
-
+        function_map_write_file = {
+            "write_file": file.write_file,
+        }
+        function_map_write_json_file = {
+            "write_json_file": file.write_json_file,
+        }
+        function_map_write_yaml_file = {
+            "write_yaml_file": file.write_yaml_file,
+        }
+        
         # create our terminate msg function
         def is_termination_msg(content):
             have_content = content.get("content", None) is not None
@@ -119,7 +207,7 @@ def main():
         # data engineer agent - generates the sql query
         engineer = AssistantAgent(
             name="Engineer",
-            llm_config=gpt4_config,
+            llm_config=run_sql_config,
             system_message=DATA_ENGINEER_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
@@ -129,18 +217,18 @@ def main():
         # sr data analyst agent - run the sql query and generate the response
         sr_data_analyst = AssistantAgent(
             name="Sr_Data_Analyst",
-            llm_config=gpt4_config,
+            llm_config=run_sql_config,
             system_message=SR_DATA_ANALYST_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
             is_termination_msg=is_termination_msg,
-            function_map=function_map,
+            function_map=function_map_run_sql,
         )
 
         # product manager - validate the response to make sure it's correct
         product_manager = AssistantAgent(
             name="Product_Manager",
-            llm_config=gpt4_config,
+            llm_config=run_sql_config,
             system_message=PRODUCT_MANAGER_PROMPT,
             code_execution_config=False,
             human_input_mode="NEVER",
@@ -160,7 +248,78 @@ def main():
             agents=data_engineering_agents,
         )
         
-        data_eng_orchestrator.sequential_conversation(prompt)
+        #data_eng_orchestrator.sequential_conversation(prompt)
+        
+        # -------------------------------------------------------
+        
+        TEXT_REPORT_ANALYST_PROMPT = "Text File Report Analyst. You exclusively use the write_file function on a summarized report."
+        JSON_REPORT_ANALYST_PROMPT = "Json Report Analyst. You exclusively use the write_json_file function on the report."
+        YML_REPORT_ANALYST_PROMPT = "Yaml Report Analyst. You exclusively use the write_yml_file function on the report."
+        
+        # text report analyst = writes a summary report of the results and saves them to a local text file
+        text_report_analyst = AssistantAgent(
+            name="Text_Report_Analyst",
+            llm_config=write_file_config,
+            system_message=TEXT_REPORT_ANALYST_PROMPT,
+            human_input_mode="NEVER",
+            function_map=function_map_write_file,
+        )
+        
+        # json report analyst = writes a summary report of the results and saves them to a local json file
+        json_report_analyst = AssistantAgent(
+            name="Json_Report_Analyst",
+            llm_config=write_json_file_config,
+            system_message=JSON_REPORT_ANALYST_PROMPT,
+            human_input_mode="NEVER",
+            function_map=function_map_write_json_file,
+        )
+        
+        yaml_report_analyst = AssistantAgent(
+            name="Yml_Report_Analyst",
+            llm_config=write_yaml_file_config,
+            system_message=YML_REPORT_ANALYST_PROMPT,
+            human_input_mode="NEVER",
+            function_map=function_map_write_yaml_file,
+        )
+        
+        mock_data_to_report = [
+            {
+                "id": 1,
+                "created": "2023-09-28T10:00:00",
+                "updated": "2023-09-28T10:10:00",
+                "authed": True,
+                "plan": "Basic",
+                "name": "John Doe",
+                "email": "john.doe@outlook.com"
+            },
+            {
+                "id": 2,
+                "created": "2023-09-27T11:00:00",
+                "updated": "2023-09-28T11:15:00",
+                "authed": True,
+                "plan": "Premium",
+                "name": "Jane Smith",
+                "email": "jane.smith@outlook.com"
+            },
+        ]
+        
+        data_viz_agents = [
+            user_proxy,
+            text_report_analyst,
+            json_report_analyst,
+            yaml_report_analyst,
+        ]
+        
+        data_viz_orchestrator = orchestrator.Orchestrator(
+            name="Postgres Data Analytics Multi-Agent ::: Data Viz Team",
+            agents=data_viz_agents,
+        )
+        
+        data_viz_prompt = f"Here is the data to report: {mock_data_to_report}"
+        
+        data_viz_orchestrator.broadcast_conversation(data_viz_prompt)
+        
+        
         
 
         # create a group chat and initiate a new chat
@@ -170,7 +329,7 @@ def main():
         #     max_round=10,
         #     )
         
-        # manager = GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
+        # manager = GroupChatManager(groupchat=groupchat, llm_config=run_sql_config)
         
         # user_proxy.initiate_chat(manager, clear_history=True, message=prompt)
         
