@@ -3,6 +3,7 @@ import dotenv
 from agentic_edu.modules.db import PostgresManager
 from agentic_edu.modules.llm import add_cap_ref
 import agentic_edu.modules.llm as llm
+import agentic_edu.modules.orchestrator as orchestrator
 import argparse
 from autogen import (
     AssistantAgent,
@@ -145,17 +146,33 @@ def main():
             human_input_mode="NEVER",
             is_termination_msg=is_termination_msg,
         )
+        
+        data_engineering_agents = [
+            user_proxy,
+            engineer,
+            sr_data_analyst,
+            product_manager,
+        ]
+        
+        # create the group chat 
+        data_eng_orchestrator = orchestrator.Orchestrator(
+            name="Postgres Data Analytics Multi-Agent ::: Data Engineering Team",
+            agents=data_engineering_agents,
+        )
+        
+        data_eng_orchestrator.sequential_conversation(prompt)
+        
 
         # create a group chat and initiate a new chat
-        groupchat = GroupChat(
-            agents=[user_proxy, engineer, sr_data_analyst, product_manager], 
-            messages=[], 
-            max_round=10,
-            )
+        # groupchat = GroupChat(
+        #     agents=[user_proxy, engineer, sr_data_analyst, product_manager], 
+        #     messages=[], 
+        #     max_round=10,
+        #     )
         
-        manager = GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
+        # manager = GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
         
-        user_proxy.initiate_chat(manager, clear_history=True, message=prompt)
+        # user_proxy.initiate_chat(manager, clear_history=True, message=prompt)
         
         
 if __name__ == '__main__':
