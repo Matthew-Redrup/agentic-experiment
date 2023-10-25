@@ -45,7 +45,7 @@ class Orchestrator:
     def add_message(self, message):
         self.messages.append(message)
         
-    def has_function(self, agent: autogen.ConversableAgent):
+    def has_functions(self, agent: autogen.ConversableAgent):
         return agent._function_map is not None
     
     def basic_chat(self, agent_a: autogen.ConversableAgent, agent_b: autogen.ConversableAgent, message: str):
@@ -61,7 +61,6 @@ class Orchestrator:
         reply = agent_b.generate_reply(sender=agent_a)
         agent_b.send(reply, agent_b)
         self.add_message(reply)
-        print(f"memory_chat(): replied with:", reply)
         
     def function_chat(self, agent_a: autogen.ConversableAgent, agent_b: autogen.ConversableAgent, message: str):
         print(f"function_call(): {agent_a.name} -> {agent_b.name}")
@@ -93,7 +92,7 @@ class Orchestrator:
                 self.basic_chat(agent_a, agent_b, self.latest_message)
                 
             # agent_a -> func() -> agent_b
-            if self.last_message_is_func_call and self.has_function(agent_a):
+            if self.last_message_is_func_call and self.has_functions(agent_a):
                 self.function_chat(agent_a, agent_b, self.latest_message)
                 
             if idx == self.total_agents -2:
@@ -134,7 +133,7 @@ class Orchestrator:
                 self.memory_chat(broadcast_agent, agent_iterate, prompt)
                 
             # agent_a -> func() -> agent_b
-            if self.last_message_is_func_call and self.has_function(agent_iterate):
+            if self.last_message_is_func_call and self.has_functions(agent_iterate):
                 self.function_chat(agent_iterate, agent_iterate, self.latest_message)
                 
             print(f"-------- Orchestrator Complete --------\n\n")

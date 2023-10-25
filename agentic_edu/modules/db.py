@@ -1,6 +1,5 @@
 import psycopg2
 from psycopg2.sql import SQL, Identifier
-from datetime import datetime
 
 class PostgresManager:
 
