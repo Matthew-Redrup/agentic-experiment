@@ -32,3 +32,6 @@ ENV/
 *.sqlite3
 *.db
 .aider*
+
+# Poetry files
+poetry.lock
