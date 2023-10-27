@@ -1,4 +1,7 @@
 # Agentic Experiment
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/poetry-core)](https://pypi.org/project/poetry-core/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## Postgres Data Analytics AI Agent
 
@@ -16,7 +19,9 @@ The code was created following along with a series from [@IndyDevDan](https://ww
 - [Video 3](https://www.youtube.com/watch?v=4o8tymMQ5GM)
 - [Video 4](https://www.youtube.com/watch?v=CKo-czvxFkY)
 
-## Setup
+## Installation and usage
+
+### Installation
 ```bash
 git clone git@github.com:Matthew-Redrup/agentic-experiment.git
 cd agentic-experiment
@@ -29,7 +34,7 @@ DATABASE_URL=""
 OPENAI_API_KEY=""
 ```
 
-## Running
+### Usage
 ```bash
 poetry run start --prompt "Ask the agent questions about the database"
 ```

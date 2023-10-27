@@ -16,10 +16,10 @@ base_config = {
     "config_list": autogen.config_list_from_models(["gpt-4"]),
     "request_timeout": 120,
 }
-        
+
 # Configuration with "run_sql"
 run_sql_config = {
-    **base_config, # Inherit base configuration
+    **base_config,  # Inherit base configuration
     "functions": [
         {
             "name": "run_sql",
@@ -37,9 +37,9 @@ run_sql_config = {
         }
     ],
 }
-        
+
 write_file_config = {
-    **base_config, # Inherit base configuration
+    **base_config,  # Inherit base configuration
     "functions": [
         {
             "name": "write_file",
@@ -61,10 +61,10 @@ write_file_config = {
         }
     ],
 }
-        
+
 # Configuration with "write_json_file"
 write_json_file_config = {
-    **base_config, # Inherit base configuration
+    **base_config,  # Inherit base configuration
     "functions": [
         {
             "name": "write_json_file",
@@ -86,9 +86,9 @@ write_json_file_config = {
         }
     ],
 }
-        
+
 write_yaml_file_config = {
-    **base_config, # Inherit base configuration
+    **base_config,  # Inherit base configuration
     "functions": [
         {
             "name": "write_yaml_file",
@@ -112,16 +112,15 @@ write_yaml_file_config = {
 }
 
 
-
 def create_func_map(name: str, func: callable):
     return {
         name: func,
     }
-    
-    
+
+
 def build_function_map_run_sql(db: PostgresManager):
     return create_func_map("run_sql", db.run_sql)
-    
+
 
 function_map_write_file = create_func_map("write_file", file.write_file)
 function_map_write_json_file = create_func_map("write_json_file", file.write_json_file)

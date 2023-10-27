@@ -1,8 +1,8 @@
 import psycopg2
 from psycopg2.sql import SQL, Identifier
 
-class PostgresManager:
 
+class PostgresManager:
     def __init__(self):
         self.conn = None
         self.cur = None
@@ -22,16 +22,16 @@ class PostgresManager:
 
     def upsert(self, table_name, _dict):
         columns = _dict.keys()
-        values = [SQL('%s')] * len(columns)
+        values = [SQL("%s")] * len(columns)
         upsert_stmt = SQL(
-            'INSERT INTO {} ({}) VALUES ({}) ON CONFLICT (id) DO UPDATE SET {}'
-            ).format(
+            "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT (id) DO UPDATE SET {}"
+        ).format(
             Identifier(table_name),
-            SQL(', ').join(map(Identifier, columns)),
-            SQL(', ').join(values),
-            SQL(', ').join(
+            SQL(", ").join(map(Identifier, columns)),
+            SQL(", ").join(values),
+            SQL(", ").join(
                 [
-                    SQL('{} = EXCLUDED.{}').format(Identifier(k), Identifier(k))
+                    SQL("{} = EXCLUDED.{}").format(Identifier(k), Identifier(k))
                     for k in columns
                 ]
             ),
@@ -40,20 +40,22 @@ class PostgresManager:
         self.conn.commit()
 
     def delete(self, table_name, _id):
-        delete_stmt = SQL('DELETE FROM {} WHERE id = %s').format(Identifier(table_name))
+        delete_stmt = SQL("DELETE FROM {} WHERE id = %s").format(Identifier(table_name))
         self.cur.execute(delete_stmt, (_id,))
         self.conn.commit()
 
     def get(self, table_name, _id):
-        select_stmt = SQL('SELECT * FROM {} WHERE id = %s').format(Identifier(table_name))
+        select_stmt = SQL("SELECT * FROM {} WHERE id = %s").format(
+            Identifier(table_name)
+        )
         self.cur.execute(select_stmt, (_id,))
         return self.cur.fetchone()
 
     def get_all(self, table_name):
-        select_all_stmt = SQL('SELECT * FROM {}').format(Identifier(table_name))
+        select_all_stmt = SQL("SELECT * FROM {}").format(Identifier(table_name))
         self.cur.execute(select_all_stmt)
         return self.cur.fetchall()
-    
+
     def run_sql(self, sql):
         self.cur.execute(sql)
         return self.cur.fetchall()
@@ -76,11 +78,13 @@ class PostgresManager:
         create_table_stmt = "CREATE TABLE {} (\n".format(table_name)
         for row in rows:
             create_table_stmt += "{} {},\n".format(row[2], row[3])
-        create_table_stmt = create_table_stmt.rstrip(',\n') + "\n);"
+        create_table_stmt = create_table_stmt.rstrip(",\n") + "\n);"
         return create_table_stmt
 
     def get_all_table_names(self):
-        get_all_tables_stmt = "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
+        get_all_tables_stmt = (
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
+        )
         self.cur.execute(get_all_tables_stmt)
         return [row[0] for row in self.cur.fetchall()]
 
@@ -90,7 +94,7 @@ class PostgresManager:
         for table_name in table_names:
             definitions.append(self.get_table_definition(table_name))
         return "\n\n".join(definitions)
-    
+
     def get_table_definitions_for_prompt_MOCK(self):
         return """CREATE TABLE users (
 id integer,
@@ -110,7 +114,7 @@ parentuserid integer,
 status text,
 totalduration bigint,
     );"""
-    
+
     def get_table_definition_for_map_embeddings(self):
         table_names = self.get_all_table_names()
         definitions = {}

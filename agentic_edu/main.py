@@ -21,53 +21,54 @@ POSTGRES_TABLE_DEFINITIONS_CAP_REF = "TABLE_DEFINITIONS"
 RESPONSE_FORMAT_CAP_REF = "RESPONSE_FORMAT"
 SQL_DELIMITER = "------------"
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", help="The prompt for the OpenAI API")
     args = parser.parse_args()
-    
+
     if not args.prompt:
         print("Please provide a prompt")
         return
-    
+
     raw_prompt = args.prompt
-    
+
     prompt = f"Fulfill this database query: {args.prompt}."
 
     with PostgresManager() as db:
         db.connect_with_url(DB_URL)
-        
-        #table_definitions = db.get_table_definitions_for_prompt()
-        #table_definitions = db.get_table_definitions_for_prompt_MOCK()
-        
+
+        # table_definitions = db.get_table_definitions_for_prompt()
+        # table_definitions = db.get_table_definitions_for_prompt_MOCK()
+
         map_table_name_to_table_def = db.get_table_definition_map_for_embeddings()
-        
+
         database_embedder = embeddings.DatabaseEmbedder()
-        
+
         for name, table_def in map_table_name_to_table_def.items():
             print(f"Adding table {name} to the database embedder")
             database_embedder.add_table(name, table_def)
-            
+
         print(
             "database_embedder.map_name_to_embeddings",
-              database_embedder.map_name_to_embeddings
+            database_embedder.map_name_to_embeddings,
         )
-        
+
         print("database_embedder.", database_embedder)
-        
+
         similar_tables = database_embedder.get_similar_tables_via_embeddings(raw_prompt)
-        
+
         print("similar_tables", similar_tables)
-        
+
         return
-        
+
         prompt = llm.add_cap_ref(
             prompt,
             f"Use these {POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
             POSTGRES_TABLE_DEFINITIONS_CAP_REF,
             table_definitions,
         )
-        
+
         # build the gpt_configuration object
         # Base Configuration
         # base_config = {
@@ -76,7 +77,7 @@ def main():
         #     "config_list": autogen.config_list_from_models(["gpt-4"]),
         #     "request_timeout": 120,
         # }
-        
+
         # # Configuration with "run_sql"
         # run_sql_config = {
         #     **base_config, # Inherit base configuration
@@ -97,7 +98,7 @@ def main():
         #         }
         #     ],
         # }
-        
+
         # write_file_config = {
         #     **base_config, # Inherit base configuration
         #     "functions": [
@@ -121,7 +122,7 @@ def main():
         #         }
         #     ],
         # }
-        
+
         # # Configuration with "write_json_file"
         # write_json_file_config = {
         #     **base_config, # Inherit base configuration
@@ -146,7 +147,7 @@ def main():
         #         }
         #     ],
         # }
-        
+
         # write_yaml_file_config = {
         #     **base_config, # Inherit base configuration
         #     "functions": [
@@ -173,7 +174,7 @@ def main():
 
         # # build the function map
         # function_map_run_sql = {
-        #     "run_sql": db.run_sql,  
+        #     "run_sql": db.run_sql,
         # }
         # function_map_write_file = {
         #     "write_file": file.write_file,
@@ -184,16 +185,16 @@ def main():
         # function_map_write_yaml_file = {
         #     "write_yaml_file": file.write_yaml_file,
         # }
-        
+
         # # create our terminate msg function
         # def is_termination_msg(content):
         #     have_content = content.get("content", None) is not None
         #     if have_content and "APPROVED" in content["content"]:
         #         return True
         #     return False
-        
+
         # COMPLETION_PROMPT = "If everything looks good, respond with APPROVED"
-        
+
         # USER_PROXY_PROMPT = (
         #     "A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin."
         #     + COMPLETION_PROMPT
@@ -251,30 +252,32 @@ def main():
         #     human_input_mode="NEVER",
         #     is_termination_msg=is_termination_msg,
         # )
-        
+
         # data_engineering_agents = [
         #     user_proxy,
         #     engineer,
         #     sr_data_analyst,
         #     product_manager,
         # ]
-        
-        # # create the group chat 
+
+        # # create the group chat
         # data_eng_orchestrator = orchestrator.Orchestrator(
         #     name="Postgres Data Analytics Multi-Agent ::: Data Engineering Team",
         #     agents=data_engineering_agents,
         # )
-        
+
         data_eng_orchestrator = agents.build_team_orchestrator("data_eng", db)
-        
-        success, data_eng_messages = data_eng_orchestrator.sequential_conversation(prompt)
+
+        success, data_eng_messages = data_eng_orchestrator.sequential_conversation(
+            prompt
+        )
         data_eng_result = data_eng_messages[-2]["content"]
         # -------------------------------------------------------
-        
+
         # TEXT_REPORT_ANALYST_PROMPT = "Text File Report Analyst. You exclusively use the write_file function on a summarized report."
         # JSON_REPORT_ANALYST_PROMPT = "Json Report Analyst. You exclusively use the write_json_file function on the report."
         # YML_REPORT_ANALYST_PROMPT = "Yaml Report Analyst. You exclusively use the write_yml_file function on the report."
-        
+
         # # text report analyst = writes a summary report of the results and saves them to a local text file
         # text_report_analyst = autogen.AssistantAgent(
         #     name="Text_Report_Analyst",
@@ -283,7 +286,7 @@ def main():
         #     human_input_mode="NEVER",
         #     function_map=function_map_write_file,
         # )
-        
+
         # # json report analyst = writes a summary report of the results and saves them to a local json file
         # json_report_analyst = autogen.AssistantAgent(
         #     name="Json_Report_Analyst",
@@ -292,7 +295,7 @@ def main():
         #     human_input_mode="NEVER",
         #     function_map=function_map_write_json_file,
         # )
-        
+
         # yaml_report_analyst = autogen.AssistantAgent(
         #     name="Yml_Report_Analyst",
         #     llm_config=write_yaml_file_config,
@@ -300,7 +303,7 @@ def main():
         #     human_input_mode="NEVER",
         #     function_map=function_map_write_yaml_file,
         # )
-        
+
         # mock_data_to_report = [
         #     {
         #         "id": 1,
@@ -321,24 +324,25 @@ def main():
         #         "email": "jane.smith@outlook.com"
         #     },
         # ]
-        
+
         # data_viz_agents = [
         #     user_proxy,
         #     text_report_analyst,
         #     json_report_analyst,
         #     yaml_report_analyst,
         # ]
-        
+
         # data_viz_orchestrator = orchestrator.Orchestrator(
         #     name="Postgres Data Analytics Multi-Agent ::: Data Viz Team",
         #     agents=data_viz_agents,
         # )
-        
+
         data_viz_orchestrator = agents.build_team_orchestrator("data_viz", db)
-        
+
         data_viz_prompt = f"Here is the data to report: {data_eng_result}"
-        
+
         data_viz_orchestrator.broadcast_conversation(data_viz_prompt)
-        
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     main()

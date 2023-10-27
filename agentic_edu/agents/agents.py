@@ -7,11 +7,10 @@ from agentic_edu.modules import orchestrator
 from agentic_edu.agents import agent_config
 
 
-
 # --------------- PROMPTS --------------- #
 
 
- # Create our terminate msg function
+# Create our terminate msg function
 def is_termination_msg(content):
     have_content = content.get("content", None) is not None
     if have_content and "APPROVED" in content["content"]:
@@ -20,7 +19,7 @@ def is_termination_msg(content):
 
 
 COMPLETION_PROMPT = "If everything looks good, respond with APPROVED"
-        
+
 USER_PROXY_PROMPT = "A human admin. Interact with the planner to discuss the plan. Plan execution needs to be approved by this admin."
 DATA_ENGINEER_PROMPT = "A Data Engineer. You follow an approved plan. Generate the initial SQL based on the requirements provided. Send it to the Sr Data Analyst for review."
 SR_DATA_ANALYST_PROMPT = "A Sr Data Analyst. You follow an approved plan. You run the SQL query and generate the response and send it to the product manager for final review."
@@ -32,8 +31,8 @@ PRODUCT_MANAGER_PROMPT = (
 TEXT_REPORT_ANALYST_PROMPT = "Text File Report Analyst. You exclusively use the write_file function on a summarized report."
 JSON_REPORT_ANALYST_PROMPT = "Json Report Analyst. You exclusively use the write_json_file function on the report."
 YML_REPORT_ANALYST_PROMPT = "Yaml Report Analyst. You exclusively use the write_yml_file function on the report."
- 
- 
+
+
 # --------------- AGENTS --------------- #
 
 # create a set of agents with specific roles
@@ -67,6 +66,7 @@ sr_data_analyst = autogen.AssistantAgent(
     function_map=agent_config.build_function_map_run_sql(PostgresManager),
 )
 
+
 def build_sr_data_analyst_agent(db: PostgresManager):
     return autogen.AssistantAgent(
         name="Sr_Data_Analyst",
@@ -76,8 +76,8 @@ def build_sr_data_analyst_agent(db: PostgresManager):
         human_input_mode="NEVER",
         function_map=agent_config.build_function_map_run_sql(db),
     )
-    
-    
+
+
 # product manager - validate the response to make sure it's correct
 product_manager = autogen.AssistantAgent(
     name="Product_Manager",
@@ -96,7 +96,7 @@ text_report_analyst = autogen.AssistantAgent(
     human_input_mode="NEVER",
     function_map=agent_config.function_map_write_file,
 )
-        
+
 # json report analyst = writes a summary report of the results and saves them to a local json file
 json_report_analyst = autogen.AssistantAgent(
     name="Json_Report_Analyst",
@@ -105,7 +105,7 @@ json_report_analyst = autogen.AssistantAgent(
     human_input_mode="NEVER",
     function_map=agent_config.function_map_write_json_file,
 )
-        
+
 yaml_report_analyst = autogen.AssistantAgent(
     name="Yml_Report_Analyst",
     llm_config=agent_config.write_yaml_file_config,
@@ -131,7 +131,7 @@ def build_team_orchestrator(
                 product_manager,
             ],
         )
-    elif team =="data_viz":
+    elif team == "data_viz":
         return orchestrator.Orchestrator(
             name="Postgtrd Data Analytics Multi-Agent ::: Data Viz Team",
             agents=[
