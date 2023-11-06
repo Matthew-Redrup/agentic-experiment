@@ -1,8 +1,9 @@
 # tests/test_orchestrator.py
 
-import pytest
+# import pytest
 from agentic_edu.modules.orchestrator import Orchestrator
 from autogen import ConversableAgent
+from unittest.mock import patch
 
 
 def test_add_message():
@@ -18,9 +19,6 @@ def test_has_functions():
     agent2 = ConversableAgent("Test Agent 2")
     orchestrator = Orchestrator("Test Orchestrator", [agent1, agent2])
     assert orchestrator.has_functions(agent1) == (agent1._function_map is not None)
-
-
-from unittest.mock import patch
 
 
 def test_basic_chat():
