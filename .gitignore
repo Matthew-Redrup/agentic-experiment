@@ -33,3 +33,4 @@ ENV/
 *.db
 .aider*
 
+.coverage

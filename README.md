@@ -1,4 +1,7 @@
 # Agentic Experiment
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/poetry-core)](https://pypi.org/project/poetry-core/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## Postgres Data Analytics AI Agent
 
@@ -16,20 +19,34 @@ The code was created following along with a series from [@IndyDevDan](https://ww
 - [Video 3](https://www.youtube.com/watch?v=4o8tymMQ5GM)
 - [Video 4](https://www.youtube.com/watch?v=CKo-czvxFkY)
 
-## Setup
+## Installation
+To install the project, follow these steps:
+1. Clone the repository:
 ```bash
 git clone git@github.com:Matthew-Redrup/agentic-experiment.git
+```
+2. Navigate to the project directory
+```bash
 cd agentic-experiment
+```
+3. Install the dependencies
+```bash
 poetry install
 ```
-You will need to have a Postgres Database to point the agent at.
+You will need to have a Postgres Database to point the agent at.  
 You will need to create a .env file containing the database URL and OPENAI_API_KEY.
+
 ```
 DATABASE_URL=""
 OPENAI_API_KEY=""
 ```
 
-## Running
+## Usage
 ```bash
 poetry run start --prompt "Ask the agent questions about the database"
+```
+
+### Example
+```bash
+poetry run start --prompt "Give me a list of all users with a gmail account"
 ```
