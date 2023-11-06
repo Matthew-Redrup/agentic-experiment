@@ -38,3 +38,9 @@ OPENAI_API_KEY=""
 ```bash
 poetry run start --prompt "Ask the agent questions about the database"
 ```
+
+
+
+## Release Notes
+Using torch 2.0.0 not 2.1.0 as poetry add is not able to pull all the metadata and results in missing dependencies. See [Issue](https://github.com/pytorch/pytorch/issues/104259).
+ALternatively can use `poetry add torch`, then manually `pip uninstall torch` and then `pip install torch` again.
