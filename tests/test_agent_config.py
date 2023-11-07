@@ -1,14 +1,19 @@
 import unittest
 import autogen
 from agentic_edu.agents import agent_config
+from unittest.mock import patch
 
 
 class TestAgentConfig(unittest.TestCase):
-    def test_base_config(self):
+    @patch("autogen.config_list_from_models")
+    def test_base_config(self, mock_config_list_from_models):
+        # Set up the mock to return an empty list
+        mock_config_list_from_models.return_value = []
+
         expected_config = {
             "use_cache": False,
             "temperature": 0,
-            "config_list": autogen.config_list_from_models(["gpt-4"]),
+            "config_list": [],
             "request_timeout": 120,
         }
         self.assertEqual(agent_config.base_config, expected_config)

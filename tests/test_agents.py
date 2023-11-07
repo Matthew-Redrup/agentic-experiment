@@ -1,88 +1,80 @@
-import pytest
-from unittest.mock import create_autospec
-from agentic_edu.modules import orchestrator
+import unittest
 from agentic_edu.agents.agents import (
-    is_termination_msg,
-    build_sr_data_analyst_agent,
-    build_team_orchestrator,
-    user_proxy,
-    data_engineer,
-    sr_data_analyst,
-    product_manager,
-    text_report_analyst,
-    json_report_analyst,
-    yaml_report_analyst,
+    build_data_eng_team,
+    build_data_viz_team,
+    build_scrum_master_team,
+    build_insights_team,
 )
-from agentic_edu.modules.db import PostgresManager
-from autogen import AssistantAgent, UserProxyAgent
+from agentic_edu.agents.instruments import PostgresAgentInstruments
+from unittest.mock import patch, MagicMock
 
 
-def test_is_termination_msg():
-    assert is_termination_msg({"content": "APPROVED"}) == True
-    assert is_termination_msg({"content": "CONTINUE"}) == False
-    assert is_termination_msg({"content": ""}) == False
-    assert is_termination_msg({"other_key": "APPROVED"}) == False
-    assert is_termination_msg({}) == False
+class TestAgents(unittest.TestCase):
+    @patch("agentic_edu.agents.instruments.PostgresAgentInstruments.run_sql")
+    def test_build_data_eng_team(self, mock_run_sql):
+        # Set up the mock
+        mock_run_sql.return_value = MagicMock()
+
+        # Create the instruments with the mocked method
+        db_url = "postgresql://username:password@localhost:5432/mydatabase"
+        session_id = "test_session"
+        self.instruments = PostgresAgentInstruments(db_url, session_id)
+
+        # Now when you call run_sql, it will use the mock instead of the real method
+        team = build_data_eng_team(self.instruments)
+        self.assertEqual(len(team), 3)
+        self.assertEqual(team[0].name, "Admin")
+        self.assertEqual(team[1].name, "Engineer")
+        self.assertEqual(team[2].name, "Sr_Data_Analyst")
+
+    @patch("agentic_edu.agents.instruments.PostgresAgentInstruments.run_sql")
+    def test_build_data_viz_team(self, mock_run_sql):
+        # Set up the mock
+        mock_run_sql.return_value = MagicMock()
+
+        # Create the instruments with the mocked method
+        db_url = "postgresql://username:password@localhost:5432/mydatabase"
+        session_id = "test_session"
+        self.instruments = PostgresAgentInstruments(db_url, session_id)
+
+        team = build_data_viz_team(self.instruments)
+        self.assertEqual(len(team), 4)
+        self.assertEqual(team[0].name, "Admin")
+        self.assertEqual(team[1].name, "Text_Report_Analyst")
+        self.assertEqual(team[2].name, "Json_Report_Analyst")
+        self.assertEqual(team[3].name, "Yml_Report_Analyst")
+
+    @patch("agentic_edu.agents.instruments.PostgresAgentInstruments.run_sql")
+    def test_build_scrum_master_team(self, mock_run_sql):
+        # Set up the mock
+        mock_run_sql.return_value = MagicMock()
+
+        # Create the instruments with the mocked method
+        db_url = "postgresql://username:password@localhost:5432/mydatabase"
+        session_id = "test_session"
+        self.instruments = PostgresAgentInstruments(db_url, session_id)
+
+        team = build_scrum_master_team(self.instruments)
+        self.assertEqual(len(team), 2)
+        self.assertEqual(team[0].name, "Admin")
+        self.assertEqual(team[1].name, "Scrum_Master")
+
+    @patch("agentic_edu.agents.instruments.PostgresAgentInstruments.run_sql")
+    def test_build_insights_team(self, mock_run_sql):
+        # Set up the mock
+        mock_run_sql.return_value = MagicMock()
+
+        # Create the instruments with the mocked method
+        db_url = "postgresql://username:password@localhost:5432/mydatabase"
+        session_id = "test_session"
+        self.instruments = PostgresAgentInstruments(db_url, session_id)
+
+        team = build_insights_team(self.instruments)
+        self.assertEqual(len(team), 3)
+        self.assertEqual(team[0].name, "Admin")
+        self.assertEqual(team[1].name, "Insights")
+        self.assertEqual(team[2].name, "Insights_Data_Reporter")
 
 
-def test_agent_creation():
-    assert isinstance(user_proxy, UserProxyAgent)
-    assert isinstance(data_engineer, AssistantAgent)
-    assert isinstance(sr_data_analyst, AssistantAgent)
-    assert isinstance(product_manager, AssistantAgent)
-    assert isinstance(text_report_analyst, AssistantAgent)
-    assert isinstance(json_report_analyst, AssistantAgent)
-    assert isinstance(yaml_report_analyst, AssistantAgent)
-
-
-def test_build_sr_data_analyst_agent():
-    db = PostgresManager()
-    agent = build_sr_data_analyst_agent(db)
-
-    assert isinstance(agent, AssistantAgent)
-    assert agent.name == "Sr_Data_Analyst"
-
-
-def test_build_sr_data_analyst_agent_invalid_db():
-    with pytest.raises(TypeError):
-        build_sr_data_analyst_agent("invalid_db")
-
-
-def test_build_team_orchestrator():
-    db = PostgresManager()
-    team = "data_eng"
-    team_orchestrator = build_team_orchestrator(team, db)
-
-    assert isinstance(team_orchestrator, orchestrator.Orchestrator)
-    assert (
-        team_orchestrator.name
-        == "Postgres Data Analytics Multi-Agent ::: Data Engineering Team"
-    )
-    assert len(team_orchestrator.agents) == 4
-
-    data_viz_orchestrator = build_team_orchestrator("data_viz", db)
-    assert (
-        data_viz_orchestrator.name
-        == "Postgtrd Data Analytics Multi-Agent ::: Data Viz Team"
-    )
-    assert len(data_viz_orchestrator.agents) == 4
-
-
-def test_build_team_orchestrator_invalid_team():
-    db = PostgresManager()
-    with pytest.raises(ValueError):
-        build_team_orchestrator("invalid_team", db)
-
-
-def test_sr_data_analyst_run_sql():
-    # Create a mock PostgresManager object
-    mock_db = create_autospec(PostgresManager)
-
-    # Create a sr_data_analyst agent with the mock PostgresManager object
-    sr_data_analyst = build_sr_data_analyst_agent(mock_db)
-
-    # Call the run_sql function through the sr_data_analyst agent's function_map
-    sr_data_analyst.function_map["run_sql"]("SELECT * FROM test_table")
-
-    # Assert that the run_sql function was called on the mock PostgresManager object
-    mock_db.run_sql.assert_called_once_with("SELECT * FROM test_table")
+if __name__ == "__main__":
+    unittest.main()
