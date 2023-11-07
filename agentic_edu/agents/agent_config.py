@@ -1,11 +1,4 @@
-import os
-import dotenv
-import argparse
 import autogen
-from agentic_edu.modules.db import PostgresManager
-from agentic_edu.modules import llm
-from agentic_edu.modules import orchestrator
-from agentic_edu.modules import file
 
 
 # build the gpt_configuration object
@@ -38,6 +31,7 @@ run_sql_config = {
     ],
 }
 
+# Configuration with "write_file"
 write_file_config = {
     **base_config,  # Inherit base configuration
     "functions": [
@@ -91,8 +85,8 @@ write_yaml_file_config = {
     **base_config,  # Inherit base configuration
     "functions": [
         {
-            "name": "write_yaml_file",
-            "description": "Write a Yaml file to the filesystem",
+            "name": "write_yml_file",
+            "description": "Write a yml file to the filesystem",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -102,7 +96,7 @@ write_yaml_file_config = {
                     },
                     "json_str": {
                         "type": "string",
-                        "description": "The content of the file to write",
+                        "description": "The json content of the file to write",
                     },
                 },
                 "required": ["fname", "json_str"],
@@ -112,16 +106,22 @@ write_yaml_file_config = {
 }
 
 
-def create_func_map(name: str, func: callable):
-    return {
-        name: func,
-    }
-
-
-def build_function_map_run_sql(db: PostgresManager):
-    return create_func_map("run_sql", db.run_sql)
-
-
-function_map_write_file = create_func_map("write_file", file.write_file)
-function_map_write_json_file = create_func_map("write_json_file", file.write_json_file)
-function_map_write_yaml_file = create_func_map("write_yaml_file", file.write_yaml_file)
+write_innovation_file_config = {
+    **base_config,  # Inherit base configuration
+    "functions": [
+        {
+            "name": "write_innovation_file",
+            "description": "Write a file to the filesystem",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "The content of the file to write",
+                    },
+                },
+                "required": ["content"],
+            },
+        }
+    ],
+}

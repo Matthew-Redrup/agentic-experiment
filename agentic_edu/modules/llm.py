@@ -1,14 +1,15 @@
-# """
-# Purpose:
-#     Interact with the OpenAI API.
-#     Provide supporting prompt engineering functions.
-# """
+"""
+Purpose:
+    Interact with the OpenAI API.
+    Provide supporting prompt engineering functions.
+"""
 
 import sys
 from dotenv import load_dotenv
 import os
 from typing import Any, Dict
 import openai
+import tiktoken
 
 # load .env file
 load_dotenv()
@@ -33,8 +34,8 @@ def safe_get(data, dot_chained_keys):
                 data = data[int(key)]
             else:
                 data = data[key]
-        except (KeyError, TypeError, IndexError) as e:
-            raise KeyError(f"Key not found: {key}") from e
+        except (KeyError, TypeError, IndexError):
+            return None
     return data
 
 
@@ -45,8 +46,11 @@ def response_parser(response: Dict[str, Any]):
 # ------------------ content generators ------------------
 
 
-def prompt(prompt: str, model: str = "gpt-4-1106-preview") -> str:
-    # validate the openai api key - if it's not valid, raise an error
+def prompt(prompt: str, model: str = "gpt-4") -> str:
+    """
+    Generate a response from a prompt using the OpenAI API.
+    """
+
     if not openai.api_key:
         sys.exit(
             """
@@ -85,3 +89,28 @@ def add_cap_ref(
     new_prompt = f"""{prompt} {prompt_suffix}\n\n{cap_ref}\n\n{cap_ref_content}"""
 
     return new_prompt
+
+
+def count_tokens(text: str):
+    """
+    Count the number of tokens in a string.
+    """
+    enc = tiktoken.get_encoding("cl100k_base")
+    return len(enc.encode(text))
+
+
+def estimate_price_and_tokens(text):
+    """
+    Conservative estimate the price and tokens for a given text.
+    """
+    # round up to the output tokens
+    COST_PER_1k_TOKENS = 0.06
+
+    tokens = count_tokens(text)
+
+    estimated_cost = (tokens / 1000) * COST_PER_1k_TOKENS
+
+    # round
+    estimated_cost = round(estimated_cost, 2)
+
+    return estimated_cost, tokens

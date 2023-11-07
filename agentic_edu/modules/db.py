@@ -1,170 +1,64 @@
+from datetime import datetime
+import json
 import psycopg2
 from psycopg2.sql import SQL, Identifier
-from typing import Dict
 
 
 class PostgresManager:
+    """
+    A class to manage postgres connections and queries
+    """
+
     def __init__(self):
-        """
-        Initialize a new instance of the PostgresManager class.
-        """
         self.conn = None
         self.cur = None
 
     def __enter__(self):
-        """
-        Enter the runtime context related to this object.
-        The with statement will bind this method’s return value to the target(s) specified in the as clause of the statement.
-        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Exit the runtime context related to this object.
-        The parameters describe the exception that caused the context to be exited.
-        """
         if self.cur:
             self.cur.close()
         if self.conn:
             self.conn.close()
 
-    def connect_with_url(self, url: str) -> None:
+    def connect_with_url(self, url):
+        self.conn = psycopg2.connect(url)
+        self.cur = self.conn.cursor()
+
+    def close(self):
+        if self.cur:
+            self.cur.close()
+        if self.conn:
+            self.conn.close()
+
+    def run_sql(self, sql) -> str:
         """
-        Connect to the PostgreSQL database.
-
-        Args:
-            url (str): The connection url.
-        """
-        try:
-            self.conn = psycopg2.connect(url)
-            self.cur = self.conn.cursor()
-        except psycopg2.Error as e:
-            print(f"Error connecting to database: {e}")
-            raise
-
-    def upsert(self, table_name: str, _dict: Dict) -> None:
-        """
-        Insert or update a row in the table.
-
-        Args:
-            table_name (str): The name of the table.
-            _dict (Dict): The data to insert or update.
-        """
-        columns = _dict.keys()
-        values = [SQL("%s")] * len(columns)
-        upsert_stmt = SQL(
-            "INSERT INTO {} ({}) VALUES ({}) ON CONFLICT (id) DO UPDATE SET {}"
-        ).format(
-            Identifier(table_name),
-            SQL(", ").join(map(Identifier, columns)),
-            SQL(", ").join(values),
-            SQL(", ").join(
-                [
-                    SQL("{} = EXCLUDED.{}").format(Identifier(k), Identifier(k))
-                    for k in columns
-                ]
-            ),
-        )
-        try:
-            self.cur.execute(upsert_stmt, list(_dict.values()))
-            self.conn.commit()
-        except psycopg2.Error as e:
-            print(f"Error executing upsert: {e}")
-            self.conn.rollback()
-            raise
-
-    def delete(self, table_name, _id):
-        """
-        Delete a row from the table.
-
-        Args:
-            table_name (str): The name of the table.
-            _id (int): The id of the row to delete.
-        """
-        delete_stmt = SQL("DELETE FROM {} WHERE id = %s").format(Identifier(table_name))
-        self.cur.execute(delete_stmt, (_id,))
-        self.conn.commit()
-
-    def get(self, table_name, _id):
-
-        """
-        Get a row from the table.
-
-        Args:
-            table_name (str): The name of the table.
-            _id (int): The id of the row to get.
-
-        Returns:
-            tuple: The row data.
-        """
-        select_stmt = SQL("SELECT * FROM {} WHERE id = %s").format(
-            Identifier(table_name)
-        )
-        self.cur.execute(select_stmt, (_id,))
-        return self.cur.fetchone()
-
-    def get_all(self, table_name):
-        """
-        Get all rows from the table.
-
-        Args:
-            table_name (str): The name of the table.
-
-        Returns:
-            list: The list of all rows.
-        """
-        select_all_stmt = SQL("SELECT * FROM {}").format(Identifier(table_name))
-        self.cur.execute(select_all_stmt)
-        return self.cur.fetchall()
-
-    def run_sql(self, sql):
-        """
-        Execute a SQL command and commit the transaction.
-
-        Args:
-            sql (str): The SQL command to execute.
-
-        Returns:
-            list: The result of the SQL command if it is a SELECT command.
-            None: If the SQL command is not a SELECT command.
-
-        Raises:
-            psycopg2.Error: If an error occurs while executing the SQL command.
+        Run a SQL query against the postgres database
         """
         self.cur.execute(sql)
-        self.conn.commit()
-        if sql.strip().upper().startswith("SELECT"):
-            return self.cur.fetchall()
-        else:
-            return None
+        columns = [desc[0] for desc in self.cur.description]
+        res = self.cur.fetchall()
 
-    def run_transaction(self, sql_commands):
+        list_of_dicts = [dict(zip(columns, row)) for row in res]
+
+        json_result = json.dumps(list_of_dicts, indent=4, default=self.datetime_handler)
+
+        return json_result
+
+    def datetime_handler(self, obj):
         """
-        Run multiple SQL commands in a single transaction.
-
-        Args:
-            sql_commands (list): The list of SQL commands to run.
-
-        Raises:
-            psycopg2.Error: If an error occurs while executing the SQL commands.
+        Handle datetime objects when serializing to JSON.
         """
-        try:
-            # Start the transaction
-            self.cur.execute("BEGIN")
-
-            # Execute each SQL command
-            for sql in sql_commands:
-                self.cur.execute(sql)
-
-            # Commit the transaction
-            self.conn.commit()
-        except psycopg2.Error as e:
-            # If an error occurs, rollback the transaction
-            self.conn.rollback()
-            print(f"Error executing transaction: {e}")
-            raise
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return str(obj)  # or just return the object unchanged, or another default value
 
     def get_table_definition(self, table_name):
+        """
+        Generate the 'create' definition for a table
+        """
+
         get_def_stmt = """
         SELECT pg_class.relname as tablename,
             pg_attribute.attnum,
@@ -175,7 +69,7 @@ class PostgresManager:
         JOIN pg_attribute ON pg_attribute.attrelid = pg_class.oid
         WHERE pg_attribute.attnum > 0
             AND pg_class.relname = %s
-            AND pg_namespace.nspname = 'public' -- Assuming you're interested in public schema
+            AND pg_namespace.nspname = 'public'  -- Assuming you're interested in public schema
         """
         self.cur.execute(get_def_stmt, (table_name,))
         rows = self.cur.fetchall()
@@ -186,6 +80,9 @@ class PostgresManager:
         return create_table_stmt
 
     def get_all_table_names(self):
+        """
+        Get all table names in the database
+        """
         get_all_tables_stmt = (
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
         )
@@ -193,36 +90,74 @@ class PostgresManager:
         return [row[0] for row in self.cur.fetchall()]
 
     def get_table_definitions_for_prompt(self):
+        """
+        Get all table 'create' definitions in the database
+        """
         table_names = self.get_all_table_names()
         definitions = []
         for table_name in table_names:
             definitions.append(self.get_table_definition(table_name))
         return "\n\n".join(definitions)
 
-    def get_table_definitions_for_prompt_MOCK(self):
-        return """CREATE TABLE users (
-id integer,
-created timestamp without time zone,
-updated timestamp without time zone,
-authed boolean,
-plan text,
-name text,
-email text,
-);
-
-CREATE TABLE jobs (
-id integer,
-created timestamp without time zone,
-updated timestamp without time zone,
-parentuserid integer,
-status text,
-totalduration bigint,
-    );"""
-
-    def get_table_definition_for_map_embeddings(self):
+    def get_table_definition_map_for_embeddings(self):
+        """
+        Creates a map of table names to table definitions
+        """
         table_names = self.get_all_table_names()
         definitions = {}
         for table_name in table_names:
             definitions[table_name] = self.get_table_definition(table_name)
         return definitions
 
+    def get_related_tables(self, table_list, n=2):
+        """
+        Get tables that have foreign keys referencing the given table
+        """
+
+        related_tables_dict = {}
+
+        for table in table_list:
+            # Query to fetch tables that have foreign keys referencing the given table
+            self.cur.execute(
+                """
+                SELECT 
+                    a.relname AS table_name
+                FROM 
+                    pg_constraint con 
+                    JOIN pg_class a ON a.oid = con.conrelid 
+                WHERE 
+                    confrelid = (SELECT oid FROM pg_class WHERE relname = %s)
+                LIMIT %s;
+                """,
+                (table, n),
+            )
+
+            related_tables = [row[0] for row in self.cur.fetchall()]
+
+            # Query to fetch tables that the given table references
+            self.cur.execute(
+                """
+                SELECT 
+                    a.relname AS referenced_table_name
+                FROM 
+                    pg_constraint con 
+                    JOIN pg_class a ON a.oid = con.confrelid 
+                WHERE 
+                    conrelid = (SELECT oid FROM pg_class WHERE relname = %s)
+                LIMIT %s;
+                """,
+                (table, n),
+            )
+
+            related_tables += [row[0] for row in self.cur.fetchall()]
+
+            related_tables_dict[table] = related_tables
+
+        # convert dict to list and remove dups
+        related_tables_list = []
+        for table, related_tables in related_tables_dict.items():
+            related_tables_list += related_tables
+
+        related_tables_list = list(set(related_tables_list))
+
+        return related_tables_list
