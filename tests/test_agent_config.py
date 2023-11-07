@@ -1,49 +1,140 @@
-import pytest
-from agentic_edu.agents.agent_config import (
-    create_func_map,
-    build_function_map_run_sql,
-    function_map_write_file,
-    function_map_write_json_file,
-    function_map_write_yaml_file,
-)
-from agentic_edu.modules.db import PostgresManager
+import unittest
+import autogen
+from agentic_edu.agents import agent_config
 
 
-def test_create_func_map():
-    # Dummy function for testing
-    def dummy_func():
-        pass
+class TestAgentConfig(unittest.TestCase):
+    def test_base_config(self):
+        expected_config = {
+            "use_cache": False,
+            "temperature": 0,
+            "config_list": autogen.config_list_from_models(["gpt-4"]),
+            "request_timeout": 120,
+        }
+        self.assertEqual(agent_config.base_config, expected_config)
 
-    func_name = "dummy_func"
-    func_map = create_func_map(func_name, dummy_func)
+    def test_run_sql_config(self):
+        expected_config = {
+            **agent_config.base_config,
+            "functions": [
+                {
+                    "name": "run_sql",
+                    "description": "Run a SQL query against the postgres database",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sql": {
+                                "type": "string",
+                                "description": "The SQL query to run",
+                            }
+                        },
+                        "required": ["sql"],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(agent_config.run_sql_config, expected_config)
 
-    assert isinstance(func_map, dict)
-    assert func_name in func_map
-    assert func_map[func_name] == dummy_func
+    def test_write_file_config(self):
+        expected_config = {
+            **agent_config.base_config,
+            "functions": [
+                {
+                    "name": "write_file",
+                    "description": "Write a file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "content": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "content"],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(agent_config.write_file_config, expected_config)
+
+    def test_write_json_file_config(self):
+        expected_config = {
+            **agent_config.base_config,
+            "functions": [
+                {
+                    "name": "write_json_file",
+                    "description": "Write a json file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "json_str": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "json_str"],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(agent_config.write_json_file_config, expected_config)
+
+    def test_write_yaml_file_config(self):
+        expected_config = {
+            **agent_config.base_config,
+            "functions": [
+                {
+                    "name": "write_yml_file",
+                    "description": "Write a yml file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fname": {
+                                "type": "string",
+                                "description": "The name of the file to write",
+                            },
+                            "json_str": {
+                                "type": "string",
+                                "description": "The json content of the file to write",
+                            },
+                        },
+                        "required": ["fname", "json_str"],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(agent_config.write_yaml_file_config, expected_config)
+
+    def test_write_innovation_file_config(self):
+        expected_config = {
+            **agent_config.base_config,
+            "functions": [
+                {
+                    "name": "write_innovation_file",
+                    "description": "Write a file to the filesystem",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "The content of the file to write",
+                            },
+                        },
+                        "required": ["content"],
+                    },
+                }
+            ],
+        }
+        self.assertEqual(agent_config.write_innovation_file_config, expected_config)
 
 
-def test_build_function_map_run_sql():
-    db = PostgresManager()
-    func_map = build_function_map_run_sql(db)
-
-    assert isinstance(func_map, dict)
-    assert "run_sql" in func_map
-    assert callable(func_map["run_sql"])
-
-
-def test_function_map_write_file():
-    assert isinstance(function_map_write_file, dict)
-    assert "write_file" in function_map_write_file
-    assert callable(function_map_write_file["write_file"])
-
-
-def test_function_map_write_json_file():
-    assert isinstance(function_map_write_json_file, dict)
-    assert "write_json_file" in function_map_write_json_file
-    assert callable(function_map_write_json_file["write_json_file"])
-
-
-def test_function_map_write_yaml_file():
-    assert isinstance(function_map_write_yaml_file, dict)
-    assert "write_yaml_file" in function_map_write_yaml_file
-    assert callable(function_map_write_yaml_file["write_yaml_file"])
+if __name__ == "__main__":
+    unittest.main()
