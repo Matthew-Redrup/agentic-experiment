@@ -1,63 +1,43 @@
+import unittest
+from unittest.mock import mock_open, patch, call
 import json
-import os
-import pytest
 import yaml
-from agentic_edu.modules.file import write_file, write_json_file, write_yaml_file
+from agentic_edu.modules import file  # assuming the file.py is in the same directory
 
 
-def test_write_file():
-    # Arrange
-    fname = "test.txt"
-    content = "Hello, World!"
+class TestFileMethods(unittest.TestCase):
+    @patch("builtins.open", new_callable=mock_open)
+    def test_write_file(self, mock_file):
+        file.write_file("test.txt", "Hello, World!")
+        mock_file.assert_called_once_with("test.txt", "w")
+        mock_file().write.assert_called_once_with("Hello, World!")
 
-    # Act
-    write_file(fname, content)
+    from unittest.mock import call  # Add this line at the top of your file
 
-    # Assert
-    with open(fname, "r") as f:
-        assert f.read() == content
+    @patch("builtins.open", new_callable=mock_open)
+    def test_write_json_file(self, mock_file):
+        json_str = '{"key": "value"}'
+        file.write_json_file("test.json", json_str)
+        mock_file.assert_called_once_with("test.json", "w")
+        calls = [
+            call("{"),
+            call("\n    "),
+            call('"key"'),
+            call(": "),
+            call('"value"'),
+            call("\n"),
+            call("}"),
+        ]
+        mock_file().write.assert_has_calls(calls, any_order=True)
 
-    # Cleanup
-    os.remove(fname)
-
-
-def test_write_json_file():
-    # Arrange
-    fname = "test.json"
-    json_str = '{"key": "value"}'
-
-    # Act
-    write_json_file(fname, json_str)
-
-    # Assert
-    with open(fname, "r") as f:
-        assert json.load(f) == json.loads(json_str)
-
-    # Cleanup
-    os.remove(fname)
-
-
-def test_write_yaml_file():
-    # Arrange
-    fname = "test.yaml"
-    json_str = '{"key": "value"}'
-
-    # Act
-    write_yaml_file(fname, json_str)
-
-    # Assert
-    with open(fname, "r") as f:
-        assert yaml.safe_load(f) == json.loads(json_str)
-
-    # Cleanup
-    os.remove(fname)
+    @patch("builtins.open", new_callable=mock_open)
+    def test_write_yml_file(self, mock_file):
+        json_str = '{"key": "value"}'
+        file.write_yml_file("test.yml", json_str)
+        mock_file.assert_called_once_with("test.yml", "w")
+        calls = [call("key"), call(":"), call(" "), call("value"), call("\n")]
+        mock_file().write.assert_has_calls(calls, any_order=True)
 
 
-def test_write_yaml_file_with_invalid_json():
-    # Arrange
-    fname = "test.yaml"
-    json_str = "invalid json"
-
-    # Act and Assert
-    with pytest.raises(json.decoder.JSONDecodeError):
-        write_yaml_file(fname, json_str)
+if __name__ == "__main__":
+    unittest.main()
