@@ -19,6 +19,7 @@ The code was created following along with a series from [@IndyDevDan](https://ww
 - [Video 3](https://www.youtube.com/watch?v=4o8tymMQ5GM)
 - [Video 4](https://www.youtube.com/watch?v=CKo-czvxFkY)
 
+
 ## Installation
 To install the project, follow these steps:
 1. Clone the repository:
@@ -50,3 +51,6 @@ poetry run start --prompt "Ask the agent questions about the database"
 ```bash
 poetry run start --prompt "Give me a list of all users with a gmail account"
 ```
+## Release Notes
+Using torch 2.0.0 not 2.1.0 as poetry add is not able to pull all the metadata and results in missing dependencies. See [Issue](https://github.com/pytorch/pytorch/issues/104259).
+ALternatively can use `poetry add torch`, then manually `pip uninstall torch` and then `pip install torch` again.

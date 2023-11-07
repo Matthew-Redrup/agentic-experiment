@@ -86,6 +86,7 @@ class PostgresManager:
         self.conn.commit()
 
     def get(self, table_name, _id):
+
         """
         Get a row from the table.
 
@@ -197,3 +198,31 @@ class PostgresManager:
         for table_name in table_names:
             definitions.append(self.get_table_definition(table_name))
         return "\n\n".join(definitions)
+
+    def get_table_definitions_for_prompt_MOCK(self):
+        return """CREATE TABLE users (
+id integer,
+created timestamp without time zone,
+updated timestamp without time zone,
+authed boolean,
+plan text,
+name text,
+email text,
+);
+
+CREATE TABLE jobs (
+id integer,
+created timestamp without time zone,
+updated timestamp without time zone,
+parentuserid integer,
+status text,
+totalduration bigint,
+    );"""
+
+    def get_table_definition_for_map_embeddings(self):
+        table_names = self.get_all_table_names()
+        definitions = {}
+        for table_name in table_names:
+            definitions[table_name] = self.get_table_definition(table_name)
+        return definitions
+
