@@ -3,6 +3,26 @@ import psycopg2
 import pytest
 from unittest.mock import Mock, patch
 from agentic_edu.modules.db import PostgresManager
+import os
+
+DB_URL = os.environ.get("DATABASE_URL")
+
+
+def test_run_sql():
+    # Set up test database with known data
+    db = PostgresManager()
+    db.connect_with_url(DB_URL)
+    db.run_sql("CREATE TABLE test_table (id INT, data VARCHAR(255))")
+    db.run_sql("INSERT INTO test_table VALUES (1, 'test data')")
+
+    # Call run_sql with a SQL query that retrieves data from the test database
+    result = db.run_sql("SELECT * FROM test_table")
+
+    # Assert that the data returned by run_sql matches the known data in the test database
+    assert result == [(1, "test data")]
+
+    # Clean up test database
+    db.run_sql("DROP TABLE test_table")
 
 
 class TestPostgresManager(unittest.TestCase):

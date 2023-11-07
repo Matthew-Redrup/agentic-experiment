@@ -68,6 +68,8 @@ sr_data_analyst = autogen.AssistantAgent(
 
 
 def build_sr_data_analyst_agent(db: PostgresManager):
+    if not isinstance(db, PostgresManager):
+        raise TypeError("db must be an instance of PostgresManager")
     return autogen.AssistantAgent(
         name="Sr_Data_Analyst",
         llm_config=agent_config.run_sql_config,
@@ -142,3 +144,5 @@ def build_team_orchestrator(
                 yaml_report_analyst,
             ],
         )
+    else:
+        raise ValueError(f"Invalid team name: {team}")
