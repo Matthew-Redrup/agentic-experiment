@@ -1,30 +1,42 @@
 import os
-import dotenv
-import argparse
-import autogen
+from agentic_edu.agents.instruments import PostgresAgentInstruments
 from agentic_edu.modules.db import PostgresManager
 from agentic_edu.modules import llm
 from agentic_edu.modules import orchestrator
+from agentic_edu.modules import rand
 from agentic_edu.modules import file
-from agentic_edu.agents import agents
 from agentic_edu.modules import embeddings
+from agentic_edu.agents import agents
+import dotenv
+import argparse
+import autogen
+
+from agentic_edu.types import ConversationResult
+
+# ---------------- Your Environment Variables ----------------
 
 dotenv.load_dotenv()
 
 assert os.environ.get("DATABASE_URL"), "POSTGRES_CONNECTION_URL not found in .env file"
-assert os.environ.get("OPENAI_API_KEY"), "OPENAI_API_KEY not found in .env file"
+assert os.environ.get(
+    "OPENAI_API_KEY"
+), "POSTGRES_CONNECTION_URL not found in .env file"
+
+
+# ---------------- Constants ----------------
+
 
 DB_URL = os.environ.get("DATABASE_URL")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 POSTGRES_TABLE_DEFINITIONS_CAP_REF = "TABLE_DEFINITIONS"
-RESPONSE_FORMAT_CAP_REF = "RESPONSE_FORMAT"
-SQL_DELIMITER = "------------"
 
 
 def main():
+    # ---------------- Parse '--prompt' CLI Parameter ----------------
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--prompt", help="The prompt for the OpenAI API")
+    parser.add_argument("--prompt", help="The prompt for the AI")
     args = parser.parse_args()
 
     if not args.prompt:
@@ -33,34 +45,61 @@ def main():
 
     raw_prompt = args.prompt
 
-    prompt = f"Fulfill this database query: {args.prompt}."
+    prompt = f"Fulfill this database query: {raw_prompt}. "
 
-    with PostgresManager() as db:
-        db.connect_with_url(DB_URL)
+    session_id = rand.generate_session_id(raw_prompt)
 
-        # table_definitions = db.get_table_definitions_for_prompt()
-        table_definitions = db.get_table_definitions_for_prompt_MOCK()
+    # ---------------- Create Agent Instruments And Build Database Connection ----------------
 
-        # map_table_name_to_table_def = db.get_table_definition_for_map_embeddings()
+    with PostgresAgentInstruments(DB_URL, session_id) as (agent_instruments, db):
+        # ----------- Gate Team: Prevent bad prompts from running and burning your $$$ -------------
 
-        # database_embedder = embeddings.DatabaseEmbedder()
+        gate_orchestrator = agents.build_team_orchestrator(
+            "scrum_master",
+            agent_instruments,
+            validate_results=lambda: (True, ""),
+        )
 
-        # for name, table_def in map_table_name_to_table_def.items():
-        #     print(f"Adding table {name} to the database embedder")
-        #     database_embedder.add_table(name, table_def)
+        gate_orchestrator: ConversationResult = (
+            gate_orchestrator.sequential_conversation(prompt)
+        )
 
-        # print(
-        #     "database_embedder.map_name_to_embeddings",
-        #     database_embedder.map_name_to_embeddings,
-        # )
+        print("gate_orchestrator.last_message_str", gate_orchestrator.last_message_str)
 
-        # print("database_embedder.", database_embedder)
+        nlq_confidence = int(gate_orchestrator.last_message_str)
 
-        # similar_tables = database_embedder.get_similar_tables_via_embeddings(raw_prompt)
+        match nlq_confidence:
+            case (1 | 2):
+                print(f"❌ Gate Team Rejected - Confidence too low: {nlq_confidence}")
+                return
+            case (3 | 4 | 5):
+                print(f"✅ Gate Team Approved - Valid confidence: {nlq_confidence}")
+            case _:
+                print("❌ Gate Team Rejected - Invalid response")
+                return
 
-        # print("similar_tables", similar_tables)
+        # -------- BUILD TABLE DEFINITIONS -----------
 
-        # return
+        map_table_name_to_table_def = db.get_table_definition_map_for_embeddings()
+
+        database_embedder = embeddings.DatabaseEmbedder()
+
+        for name, table_def in map_table_name_to_table_def.items():
+            database_embedder.add_table(name, table_def)
+
+        similar_tables = database_embedder.get_similar_tables(raw_prompt, n=5)
+
+        table_definitions = database_embedder.get_table_definitions_from_names(
+            similar_tables
+        )
+
+        related_table_names = db.get_related_tables(similar_tables, n=3)
+
+        core_and_related_table_definitions = (
+            database_embedder.get_table_definitions_from_names(
+                related_table_names + similar_tables
+            )
+        )
 
         prompt = llm.add_cap_ref(
             prompt,
@@ -69,20 +108,70 @@ def main():
             table_definitions,
         )
 
-        data_eng_orchestrator = agents.build_team_orchestrator("data_eng", db)
+        # ----------- Data Eng Team: Based on a sql table definitions and a prompt create an sql statement and execute it -------------
 
-        success, data_eng_messages = data_eng_orchestrator.sequential_conversation(
-            prompt
+        # data_eng_orchestrator = agents.build_team_orchestrator(
+        #     "data_eng",
+        #     agent_instruments,
+        #     validate_results=agent_instruments.validate_run_sql,
+        # )
+
+        # data_eng_conversation_result: ConversationResult = (
+        #     data_eng_orchestrator.sequential_conversation(prompt)
+        # )
+
+        # match data_eng_conversation_result:
+        #     case ConversationResult(
+        #         success=True, cost=data_eng_cost, tokens=data_eng_tokens
+        #     ):
+        #         print(
+        #             f"✅ Orchestrator was successful. Team: {data_eng_orchestrator.name}"
+        #         )
+        #         print(
+        #             f"💰📊🤖 {data_eng_orchestrator.name} Cost: {data_eng_cost}, tokens: {data_eng_tokens}"
+        #         )
+        #     case _:
+        #         print(
+        #             f"❌ Orchestrator failed. Team: {data_eng_orchestrator.name} Failed"
+        #         )
+
+        # ----------- Data Insights Team: Based on sql table definitions and a prompt generate novel insights -------------
+
+        innovation_prompt = f"Given this database query: '{raw_prompt}'. Generate novel insights and new database queries to give business insights."
+
+        insights_prompt = llm.add_cap_ref(
+            innovation_prompt,
+            f"Use these {POSTGRES_TABLE_DEFINITIONS_CAP_REF} to satisfy the database query.",
+            POSTGRES_TABLE_DEFINITIONS_CAP_REF,
+            core_and_related_table_definitions,
         )
-        print(data_eng_messages)
-        data_eng_result = data_eng_messages[-1]["content"]
-        # -------------------------------------------------------
 
-        data_viz_orchestrator = agents.build_team_orchestrator("data_viz", db)
+        data_insights_orchestrator = agents.build_team_orchestrator(
+            "data_insights",
+            agent_instruments,
+            validate_results=agent_instruments.validate_innovation_files,
+        )
 
-        data_viz_prompt = f"Here is the data to report: {data_eng_result}"
+        data_insights_conversation_result: ConversationResult = (
+            data_insights_orchestrator.round_robin_conversation(
+                insights_prompt, loops=1
+            )
+        )
 
-        data_viz_orchestrator.broadcast_conversation(data_viz_prompt)
+        match data_insights_conversation_result:
+            case ConversationResult(
+                success=True, cost=data_insights_cost, tokens=data_insights_tokens
+            ):
+                print(
+                    f"✅ Orchestrator was successful. Team: {data_insights_orchestrator.name}"
+                )
+                print(
+                    f"💰📊🤖 {data_insights_orchestrator.name} Cost: {data_insights_cost}, tokens: {data_insights_tokens}"
+                )
+            case _:
+                print(
+                    f"❌ Orchestrator failed. Team: {data_insights_orchestrator.name} Failed"
+                )
 
 
 if __name__ == "__main__":

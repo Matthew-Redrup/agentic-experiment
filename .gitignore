@@ -34,3 +34,4 @@ ENV/
 .aider*
 
 .coverage
+agent_results/

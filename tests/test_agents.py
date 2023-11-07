@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import create_autospec
 from agentic_edu.modules import orchestrator
 from agentic_edu.agents.agents import (
     is_termination_msg,
@@ -71,3 +72,17 @@ def test_build_team_orchestrator_invalid_team():
     db = PostgresManager()
     with pytest.raises(ValueError):
         build_team_orchestrator("invalid_team", db)
+
+
+def test_sr_data_analyst_run_sql():
+    # Create a mock PostgresManager object
+    mock_db = create_autospec(PostgresManager)
+
+    # Create a sr_data_analyst agent with the mock PostgresManager object
+    sr_data_analyst = build_sr_data_analyst_agent(mock_db)
+
+    # Call the run_sql function through the sr_data_analyst agent's function_map
+    sr_data_analyst.function_map["run_sql"]("SELECT * FROM test_table")
+
+    # Assert that the run_sql function was called on the mock PostgresManager object
+    mock_db.run_sql.assert_called_once_with("SELECT * FROM test_table")
