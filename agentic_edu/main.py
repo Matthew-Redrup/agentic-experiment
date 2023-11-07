@@ -74,7 +74,8 @@ def main():
         success, data_eng_messages = data_eng_orchestrator.sequential_conversation(
             prompt
         )
-        data_eng_result = data_eng_messages[-2]["content"]
+        print(data_eng_messages)
+        data_eng_result = data_eng_messages[-1]["content"]
         # -------------------------------------------------------
 
         data_viz_orchestrator = agents.build_team_orchestrator("data_viz", db)

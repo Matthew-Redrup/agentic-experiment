@@ -51,6 +51,19 @@ poetry run start --prompt "Ask the agent questions about the database"
 ```bash
 poetry run start --prompt "Give me a list of all users with a gmail account"
 ```
+
+## Testing
+To run the tests, follow these steps:
+1. Navigate to the project directory
+```bash
+cd agentic-experiment
+```
+2. Run the tests
+```bash
+poetry run pytest --cov=. --cov-report=html
+```
+
+
 ## Release Notes
 Using torch 2.0.0 not 2.1.0 as poetry add is not able to pull all the metadata and results in missing dependencies. See [Issue](https://github.com/pytorch/pytorch/issues/104259).
 ALternatively can use `poetry add torch`, then manually `pip uninstall torch` and then `pip install torch` again.
