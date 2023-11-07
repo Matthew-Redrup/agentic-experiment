@@ -77,7 +77,7 @@ class Orchestrator:
         agent_b: autogen.ConversableAgent,
         message: str,
     ):
-        print(f"function_call(): {agent_a.name} -> {agent_b.name}")
+        print(f"function_chat(): {agent_a.name} -> {agent_b.name}")
         self.basic_chat(agent_a, agent_a, message)
         assert self.last_message_is_content
         self.basic_chat(agent_a, agent_b, self.latest_message)

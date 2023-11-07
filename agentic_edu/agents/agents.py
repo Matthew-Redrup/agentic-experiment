@@ -127,7 +127,8 @@ def build_team_orchestrator(
             agents=[
                 user_proxy,
                 data_engineer,
-                build_sr_data_analyst_agent(db),
+                sr_data_analyst,
+                # build_sr_data_analyst_agent(db),
                 product_manager,
             ],
         )
