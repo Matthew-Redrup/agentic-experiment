@@ -33,8 +33,8 @@ def safe_get(data, dot_chained_keys):
                 data = data[int(key)]
             else:
                 data = data[key]
-        except (KeyError, TypeError, IndexError):
-            return None
+        except (KeyError, TypeError, IndexError) as e:
+            raise KeyError(f"Key not found: {key}") from e
     return data
 
 

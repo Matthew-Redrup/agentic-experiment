@@ -19,28 +19,38 @@ The code was created following along with a series from [@IndyDevDan](https://ww
 - [Video 3](https://www.youtube.com/watch?v=4o8tymMQ5GM)
 - [Video 4](https://www.youtube.com/watch?v=CKo-czvxFkY)
 
-## Installation and usage
 
-### Installation
+## Installation
+To install the project, follow these steps:
+1. Clone the repository:
 ```bash
 git clone git@github.com:Matthew-Redrup/agentic-experiment.git
+```
+2. Navigate to the project directory
+```bash
 cd agentic-experiment
+```
+3. Install the dependencies
+```bash
 poetry install
 ```
-You will need to have a Postgres Database to point the agent at.
+You will need to have a Postgres Database to point the agent at.  
 You will need to create a .env file containing the database URL and OPENAI_API_KEY.
+
 ```
 DATABASE_URL=""
 OPENAI_API_KEY=""
 ```
 
-### Usage
+## Usage
 ```bash
 poetry run start --prompt "Ask the agent questions about the database"
 ```
 
-
-
+### Example
+```bash
+poetry run start --prompt "Give me a list of all users with a gmail account"
+```
 ## Release Notes
 Using torch 2.0.0 not 2.1.0 as poetry add is not able to pull all the metadata and results in missing dependencies. See [Issue](https://github.com/pytorch/pytorch/issues/104259).
 ALternatively can use `poetry add torch`, then manually `pip uninstall torch` and then `pip install torch` again.

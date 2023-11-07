@@ -28,7 +28,7 @@ class Orchestrator:
     @property
     def last_message_is_func_call(self):
         return self.last_message_is_dict and self.latest_message.get(
-            "function_call", None
+            "function_chat", None
         )
 
     @property
@@ -53,11 +53,14 @@ class Orchestrator:
         agent_b: autogen.ConversableAgent,
         message: str,
     ):
-        print(f"basic_chat: {agent_a.name} -> {agent_b.name}")
+        responses = []
+        responses.append(f"basic_chat: {agent_a.name} -> {agent_b.name}")
         agent_a.send(message, agent_b)
         reply = agent_b.generate_reply(sender=agent_a)
         self.add_message(reply)
-        print(f"basic_chat(): replied with:", reply)
+        responses.append(f"basic_chat(): replied with: {reply}")
+        print(responses)
+        return responses
 
     def memory_chat(
         self,
@@ -65,11 +68,14 @@ class Orchestrator:
         agent_b: autogen.ConversableAgent,
         message: str,
     ):
-        print(f"memory_chat: {agent_a.name} -> {agent_b.name}")
+        responses = []
+        responses.append(f"memory_chat: {agent_a.name} -> {agent_b.name}")
         agent_a.send(message, agent_b)
         reply = agent_b.generate_reply(sender=agent_a)
         agent_b.send(reply, agent_b)
         self.add_message(reply)
+        print(responses)
+        return responses
 
     def function_chat(
         self,
@@ -77,10 +83,14 @@ class Orchestrator:
         agent_b: autogen.ConversableAgent,
         message: str,
     ):
-        print(f"function_chat(): {agent_a.name} -> {agent_b.name}")
-        self.basic_chat(agent_a, agent_a, message)
-        assert self.last_message_is_content
-        self.basic_chat(agent_a, agent_b, self.latest_message)
+        responses = []
+        responses.append(f"function_chat(): {agent_a.name} -> {agent_b.name}")
+        responses.extend(self.basic_chat(agent_a, agent_a, message))
+        # assert self.last_message_is_func_call
+        responses.extend(self.basic_chat(agent_a, agent_b, self.latest_message))
+        print(responses)
+        return responses
+
 
     def sequential_conversation(self, prompt: str) -> Tuple[bool, List[str]]:
         """

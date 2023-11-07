@@ -33,5 +33,4 @@ ENV/
 *.db
 .aider*
 
-# Poetry files
-poetry.lock
+.coverage
