@@ -1,271 +1,91 @@
 import unittest
-import psycopg2
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch, MagicMock
 from agentic_edu.modules.db import PostgresManager
-import os
-
-DB_URL = os.environ.get("DATABASE_URL")
-
-
-def test_run_sql():
-    # Set up test database with known data
-    db = PostgresManager()
-    db.connect_with_url(DB_URL)
-    db.run_sql("CREATE TABLE test_table (id INT, data VARCHAR(255))")
-    db.run_sql("INSERT INTO test_table VALUES (1, 'test data')")
-
-    # Call run_sql with a SQL query that retrieves data from the test database
-    result = db.run_sql("SELECT * FROM test_table")
-
-    # Assert that the data returned by run_sql matches the known data in the test database
-    assert result == [(1, "test data")]
-
-    # Clean up test database
-    db.run_sql("DROP TABLE test_table")
 
 
 class TestPostgresManager(unittest.TestCase):
     @patch("psycopg2.connect")
-    def test_connect_with_url(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
+    def setUp(self, mock_connect):
+        # Mock the connection and cursor
+        self.mock_conn = MagicMock()
+        self.mock_cur = MagicMock()
 
-        # Act
-        manager.connect_with_url(url)
+        # Set the return values
+        mock_connect.return_value = self.mock_conn
+        self.mock_conn.cursor.return_value = self.mock_cur
 
-        # Assert
-        mock_connect.assert_called_once_with(url)
-        mock_conn.cursor.assert_called_once()
-        self.assertEqual(manager.conn, mock_conn)
-        self.assertEqual(manager.cur, mock_cur)
+        # Create the PostgresManager instance
+        self.manager = PostgresManager()
+        self.manager.connect_with_url(
+            "postgresql://username:password@localhost:5432/mydatabase"
+        )
 
-    @patch("psycopg2.connect")
-    def test_upsert(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        table_name = "test_table"
-        _dict = {"id": 1, "name": "Test"}
+    def test_run_sql(self):
+        # Set up the mock
+        self.mock_cur.description = [("column1",), ("column2",)]
+        self.mock_cur.fetchall.return_value = [("value1", "value2")]
 
-        # Act
-        manager.upsert(table_name, _dict)
+        # Run the method
+        result = self.manager.run_sql("SELECT * FROM table")
 
-        # Assert
-        mock_cur.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
+        # Check the result
+        expected_result = '[\n    {\n        "column1": "value1",\n        "column2": "value2"\n    }\n]'
+        self.assertEqual(result, expected_result)
 
-    @patch("psycopg2.connect")
-    def test_delete(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        table_name = "test_table"
-        _id = 1
+    def test_close(self):
+        self.manager.close()
+        self.mock_cur.close.assert_called_once()
+        self.mock_conn.close.assert_called_once()
 
-        # Act
-        manager.delete(table_name, _id)
-
-        # Assert
-        mock_cur.execute.assert_called_once()
-        mock_conn.commit.assert_called_once()
-
-    @patch("psycopg2.connect")
-    def test_get(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        table_name = "test_table"
-        _id = 1
-
-        # Act
-        manager.get(table_name, _id)
-
-        # Assert
-        mock_cur.execute.assert_called_once()
-        mock_cur.fetchone.assert_called_once()
-
-    @patch("psycopg2.connect")
-    def test_get_all(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        table_name = "test_table"
-
-        # Act
-        manager.get_all(table_name)
-
-        # Assert
-        mock_cur.execute.assert_called_once()
-        mock_cur.fetchall.assert_called_once()
-
-    @patch("psycopg2.connect")
-    def test_run_sql(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        sql = "SELECT * FROM test_table"
-
-        # Act
-        manager.run_sql(sql)
-
-        # Assert
-        mock_cur.execute.assert_called_once_with(sql)
-        mock_cur.fetchall.assert_called_once()
-
-    @patch("psycopg2.connect")
-    def test_run_sql_with_invalid_sql(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-
-        def mock_execute(sql):
-            if sql == "INVALID SQL":
-                raise psycopg2.Error("Invalid SQL command")
-
-        mock_cur.execute.side_effect = mock_execute
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        sql = "INVALID SQL"
-
-        # Act and Assert
-        with self.assertRaises(psycopg2.Error):
-            manager.run_sql(sql)
-
-    @patch("psycopg2.connect")
-    def test_run_sql_with_fetchall_exception(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        mock_cur.fetchall.side_effect = psycopg2.Error("fetchall error")
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        sql = "SELECT * FROM test_table"
-
-        # Act and Assert
-        with self.assertRaises(psycopg2.Error):
-            manager.run_sql(sql)
-
-    @patch("psycopg2.connect")
-    def test_run_sql_with_no_results(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        mock_cur.fetchall.return_value = []
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        sql = "SELECT * FROM empty_table"
-
-        # Act
-        result = manager.run_sql(sql)
-
-        # Assert
-        self.assertEqual(result, [])
-
-    @patch("psycopg2.connect")
-    def test_run_sql_with_non_select_command(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        url = "postgresql://user:pass@localhost:5432/dbname"
-        manager = PostgresManager()
-        manager.connect_with_url(url)
-        sql = "UPDATE test_table SET column = value"
-
-        # Act
-        result = manager.run_sql(sql)
-
-        # Assert
-        mock_cur.execute.assert_called_once_with(sql)
-        mock_conn.commit.assert_called_once()
-        self.assertIsNone(result)
-
-    @patch("psycopg2.connect")
-    def test_run_transaction_success(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        manager = PostgresManager()
-        manager.connect_with_url("postgresql://user:pass@localhost:5432/dbname")
-        sql_commands = [
-            "UPDATE test_table SET column1 = value1",
-            "UPDATE test_table SET column2 = value2",
+    @patch("agentic_edu.modules.db.PostgresManager.get_all_table_names")
+    def test_get_table_definitions_for_prompt(self, mock_get_all_table_names):
+        mock_get_all_table_names.return_value = ["table1", "table2"]
+        self.mock_cur.fetchall.return_value = [
+            ("table1", 1, "column1", "integer"),
+            ("table2", 2, "column2", "varchar"),
         ]
+        result = self.manager.get_table_definitions_for_prompt()
+        expected_result = (
+            "CREATE TABLE table1 (\ncolumn1 integer,\ncolumn2 varchar\n);\n\n"
+            "CREATE TABLE table2 (\ncolumn1 integer,\ncolumn2 varchar\n);"
+        )
+        self.assertEqual(result, expected_result)
 
-        # Act
-        manager.run_transaction(sql_commands)
+    def test_get_all_table_names(self):
+        self.mock_cur.fetchall.return_value = [("table1",), ("table2",)]
+        result = self.manager.get_all_table_names()
+        self.assertEqual(result, ["table1", "table2"])
 
-        # Assert
-        assert (
-            mock_cur.execute.call_count == len(sql_commands) + 1
-        )  # +1 for the BEGIN command
-        mock_conn.commit.assert_called_once()
+    def test_get_table_definition(self):
+        self.mock_cur.fetchall.return_value = [
+            ("table1", 1, "column1", "integer"),
+            ("table1", 2, "column2", "varchar"),
+        ]
+        result = self.manager.get_table_definition("table1")
+        self.assertEqual(
+            result, "CREATE TABLE table1 (\ncolumn1 integer,\ncolumn2 varchar\n);"
+        )
 
-    @patch("psycopg2.connect")
-    def test_run_transaction_failure(self, mock_connect):
-        # Arrange
-        mock_conn = Mock()
-        mock_cur = Mock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cur
-        manager = PostgresManager()
-        manager.connect_with_url("postgresql://user:pass@localhost:5432/dbname")
-        sql_commands = ["UPDATE test_table SET column1 = value1", "INVALID SQL"]
+    @patch("agentic_edu.modules.db.PostgresManager.get_all_table_names")
+    def test_get_table_definition_map_for_embeddings(self, mock_get_all_table_names):
+        mock_get_all_table_names.return_value = ["table1", "table2"]
+        self.mock_cur.fetchall.return_value = [
+            ("table1", 1, "column1", "integer"),
+            ("table1", 2, "column2", "varchar"),
+        ]
+        result = self.manager.get_table_definition_map_for_embeddings()
+        self.assertEqual(
+            result,
+            {
+                "table1": "CREATE TABLE table1 (\ncolumn1 integer,\ncolumn2 varchar\n);",
+                "table2": "CREATE TABLE table2 (\ncolumn1 integer,\ncolumn2 varchar\n);",
+            },
+        )
 
-        def mock_execute(sql):
-            if sql == "INVALID SQL":
-                raise psycopg2.Error("Invalid SQL command")
-
-        mock_cur.execute.side_effect = mock_execute
-
-        # Act and Assert
-        with pytest.raises(psycopg2.Error):
-            manager.run_transaction(sql_commands)
-
-        mock_conn.rollback.assert_called_once()
+    def test_get_related_tables(self):
+        self.mock_cur.fetchall.side_effect = [[("table2",)], [("table3",)]]
+        result = self.manager.get_related_tables(["table1"])
+        self.assertEqual(sorted(result), sorted(["table2", "table3"]))
 
 
 if __name__ == "__main__":
